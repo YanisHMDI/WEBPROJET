@@ -1,0 +1,66 @@
+# Lancement :  MODE=PAIR_SUPERVISOR PAIR_MODE=LOCKED docker compose up --build
+#   MODE       : SPOILED (partie 1) | NAIVE_SUPERVISOR (partie 2) | PAIR_SUPERVISOR (3.1 / 3.2)
+#   PAIR_MODE  : UNSAFE (3.1) | LOCKED (3.2)
+#   RACE_WINDOW: pause entre "vérifier" et "réserver" côté superviseur (ex : 20ms) pour voir les bugs
+#   DETECT_CONFLICTS : mettre false en partie 1 (les voisins ont le droit de manger ensemble)
+# Tableau de bord : http://localhost:8080
+
+x-philosopher: &philosopher
+  build:
+    context: .
+    args:
+      MODULE: philosopher-service
+  image: philo/philosopher-service
+  depends_on: [monitor, supervisor]
+  restart: unless-stopped
+
+x-philo-env: &philo-env
+  PHILO_COUNT: 5
+  PHILO_MODE: ${MODE:-SPOILED}
+  PHILO_MONITOR_URL: http://monitor:8080
+  PHILO_SUPERVISOR_URL: http://supervisor:8081
+
+services:
+  monitor:
+    build:
+      context: .
+      args:
+        MODULE: monitor-service
+    image: philo/monitor-service
+    ports: ["8080:8080"]
+    environment:
+      MONITOR_PHILOSOPHERS: 5
+      MONITOR_DETECT_NEIGHBOUR_CONFLICTS: ${DETECT_CONFLICTS:-true}
+
+  supervisor:
+    build:
+      context: .
+      args:
+        MODULE: supervisor-service
+    image: philo/supervisor-service
+    ports: ["8081:8081"]
+    environment:
+      SUPERVISOR_FORKS: 5
+      SUPERVISOR_PAIR_MODE: ${PAIR_MODE:-LOCKED}
+      SUPERVISOR_RACE_WINDOW: ${RACE_WINDOW:-0ms}
+
+  philo-0:
+    <<: *philosopher
+    ports: ["8090:8090"]
+    environment: { <<: *philo-env, PHILO_ID: 0 }
+  philo-1:
+    <<: *philosopher
+    ports: ["8091:8090"]
+    environment: { <<: *philo-env, PHILO_ID: 1 }
+  philo-2:
+    <<: *philosopher
+    ports: ["8092:8090"]
+    environment: { <<: *philo-env, PHILO_ID: 2 }
+  philo-3:
+    <<: *philosopher
+    ports: ["8093:8090"]
+    environment: { <<: *philo-env, PHILO_ID: 3 }
+  philo-4:
+    <<: *philosopher
+    ports: ["8094:8090"]
+    environment: { <<: *philo-env, PHILO_ID: 4 }
