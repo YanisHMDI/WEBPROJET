@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: monitor-service
+
+monitor:
+  philosophers: 5
+  detect-neighbour-conflicts: true
+  max-events: 10000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

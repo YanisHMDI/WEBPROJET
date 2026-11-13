@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dîner des philosophes — moniteur</title>
+    <style>
+        :root {
+            --bg: #f6f5f2; --card: #ffffff; --ink: #1f2328; --muted: #6b7280; --line: #e5e3de;
+            --thinking: #3b82f6; --hungry: #f59e0b; --eating: #16a34a; --unknown: #9ca3af; --danger: #dc2626;
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
+        header { padding: 20px 28px; border-bottom: 1px solid var(--line); background: var(--card); display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+        header h1 { font-size: 20px; margin: 0; }
+        header .meta { color: var(--muted); font-size: 14px; }
+        header button { margin-left: auto; border: 1px solid var(--line); background: var(--card); padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+        main { display: grid; grid-template-columns: 420px 1fr; gap: 20px; padding: 20px 28px; }
+        @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+        section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
+        section h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; }
+        svg { width: 100%; height: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+        th { color: var(--muted); font-weight: 500; }
+        .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 600; }
+        .THINKING { background: var(--thinking); } .HUNGRY { background: var(--hungry); }
+        .EATING { background: var(--eating); } .UNKNOWN { background: var(--unknown); }
+        .conflict { color: var(--danger); }
+        .ok { color: var(--eating); }
+        .events { max-height: 420px; overflow-y: auto; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+        .stack { display: grid; gap: 20px; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Dîner des philosophes</h1>
+    <span class="meta" id="meta">connexion…</span>
+    <button id="reset" title="Vide l'historique du moniteur">Réinitialiser</button>
+</header>
+<main>
+    <div class="stack">
+        <section>
+            <h2>Table</h2>
+            <svg id="table" viewBox="0 0 400 400" role="img" aria-label="Table des philosophes"></svg>
+        </section>
+        <section>
+            <h2>Exclusion mutuelle</h2>
+            <div id="conflicts"></div>
+        </section>
+    </div>
+    <div class="stack">
+        <section>
+            <h2>Philosophes</h2>
+            <table>
+                <thead><tr><th>#</th><th>État</th><th>Repas</th><th>Horloge</th><th>Vu à</th></tr></thead>
+                <tbody id="philosophers"></tbody>
+            </table>
+        </section>
+        <section>
+            <h2>Historique (ordre de Lamport)</h2>
+            <div class="events">
+                <table>
+                    <thead><tr><th>Lamport</th><th>Philosophe</th><th>Événement</th><th>Reçu n°</th></tr></thead>
+                    <tbody id="events"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</main>
+<script>
+    const colors = { THINKING: 'var(--thinking)', HUNGRY: 'var(--hungry)', EATING: 'var(--eating)', UNKNOWN: 'var(--unknown)' };
+    const labels = { THINKING: 'pense', HUNGRY: 'a faim', EATING: 'mange', UNKNOWN: '—' };
+    const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString('fr-FR') : '—';
+
+    function drawTable(philosophers) {
+        const n = philosophers.length, cx = 200, cy = 200, r = 140;
+        let svg = `<circle cx="${cx}" cy="${cy}" r="95" fill="#efe9dd" stroke="#d6cfc0"/>`;
+        philosophers.forEach((p, i) => {
+            const a = (2 * Math.PI * i) / n - Math.PI / 2;
+            const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
+            // fourchette i entre le philosophe i-1 et i
+            const fa = a - Math.PI / n, fx = cx + 80 * Math.cos(fa), fy = cy + 80 * Math.sin(fa);
+            svg += `<text x="${fx}" y="${fy}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#6b7280">F${i}</text>`;
+            svg += `<circle cx="${x}" cy="${y}" r="30" fill="${colors[p.state]}"/>`;
+            svg += `<text x="${x}" y="${y - 4}" text-anchor="middle" fill="#fff" font-weight="700">P${p.id}</text>`;
+            svg += `<text x="${x}" y="${y + 12}" text-anchor="middle" fill="#fff" font-size="11">${labels[p.state]}</text>`;
+        });
+        document.getElementById('table').innerHTML = svg;
+    }
+
+    async function refresh() {
+        try {
+            const [state, events] = await Promise.all([
+                fetch('/api/state').then(r => r.json()),
+                fetch('/api/events?limit=150').then(r => r.json())
+            ]);
+            document.getElementById('meta').textContent =
+                `${state.philosopherCount} philosophes · ${state.totalEvents} événements reçus · ${state.staleEvents} hors ordre`;
+            drawTable(state.philosophers);
+            document.getElementById('philosophers').innerHTML = state.philosophers.map(p =>
+                `<tr><td>P${p.id}</td><td><span class="pill ${p.state}">${labels[p.state]}</span></td>
+                 <td>${p.meals}</td><td>${p.lastLamport}</td><td>${fmtTime(p.lastSeen)}</td></tr>`).join('');
+            document.getElementById('conflicts').innerHTML = state.conflicts.length === 0
+                ? '<p class="ok">Aucun voisin n\'a mangé en même temps.</p>'
+                : `<p class="conflict"><strong>${state.conflicts.length} violation(s)</strong> : deux voisins ont mangé avec la même fourchette.</p>
+                   <table>${state.conflicts.slice(-10).reverse().map(c =>
+                    `<tr class="conflict"><td>P${c.philosopher} & P${c.neighbour}</td><td>F${c.sharedFork}</td><td>${fmtTime(c.detectedAt)}</td></tr>`).join('')}</table>`;
+            document.getElementById('events').innerHTML = events.slice().reverse().map(e =>
+                `<tr><td>${e.event.lamport}</td><td>P${e.event.philosopherId}</td><td>${e.event.type}</td><td>${e.sequence}</td></tr>`).join('');
+        } catch (err) {
+            document.getElementById('meta').textContent = 'moniteur injoignable';
+        }
+    }
+
+    document.getElementById('reset').addEventListener('click', async () => {
+        await fetch('/api/events', { method: 'DELETE' });
+        refresh();
+    });
+    refresh();
+    setInterval(refresh, 1000);
+</script>
+</body>
+</html>
