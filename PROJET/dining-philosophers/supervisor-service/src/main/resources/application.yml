@@ -1,0 +1,19 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: supervisor-service
+
+supervisor:
+  forks: 5
+  # UNSAFE = partie 3.1 (sans verrou) ; LOCKED = partie 3.2 (section critique verrouillée)
+  pair-mode: LOCKED
+  # > 0 pour élargir la fenêtre de course et rendre les bugs visibles (ex : 20ms)
+  race-window: 0ms
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
