@@ -9,14 +9,15 @@ fourchette utilisée par deux philosophes à la fois.
 ## Sommaire
 
 1. [État d'avancement](#1-état-davancement)
-2. [Démarrage rapide](#2-démarrage-rapide)
-3. [Architecture](#3-architecture)
-4. [Arborescence du projet](#4-arborescence-du-projet)
-5. [Les parties réalisées](#5-les-parties-réalisées), de la [partie 1](#partie-1--philosophes-gâtés) à la [partie 3.3](#partie-33--protocole-distribué-par-jetons)
-6. [Tests](#6-tests)
-7. [API HTTP](#7-api-http)
-8. [Configuration](#8-configuration)
-9. [Ce qu'il reste à faire](#9-ce-quil-reste-à-faire)
+2. [Les étapes en bref](#2-les-étapes-en-bref)
+3. [Démarrage rapide](#3-démarrage-rapide)
+4. [Architecture](#4-architecture)
+5. [Arborescence du projet](#5-arborescence-du-projet)
+6. [Les parties réalisées](#6-les-parties-réalisées), de la [partie 1](#partie-1--philosophes-gâtés) à la [partie 3.3](#partie-33--protocole-distribué-par-jetons)
+7. [Tests](#7-tests)
+8. [API HTTP](#8-api-http)
+9. [Configuration](#9-configuration)
+10. [Ce qu'il reste à faire](#10-ce-quil-reste-à-faire)
 
 ---
 
@@ -39,7 +40,64 @@ fourchette utilisée par deux philosophes à la fois.
 
 ---
 
-## 2. Démarrage rapide
+## 2. Les étapes en bref
+
+Ce qui a été fait jusqu'ici, dans l'ordre, et comment.
+
+**Étape 1 — Des philosophes qui pensent et mangent (partie 1).**
+Chaque philosophe est un petit programme Spring Boot qui tourne en boucle : penser, avoir faim, manger.
+À chaque changement d'état, il envoie un message au **moniteur**. Ce message est daté par une **horloge de
+Lamport**, un compteur qui augmente à chaque événement. Le moniteur affiche tout sur une page web. Ici, rien
+n'est partagé, donc tout le monde peut manger en même temps.
+
+**Étape 2 — Un superviseur naïf (partie 2).**
+Un service **superviseur** garde la liste des fourchettes. Le philosophe demande sa fourchette gauche, puis sa
+droite, en gardant la gauche pendant qu'il attend. Résultat : si tous prennent leur gauche en même temps,
+**tout le monde est bloqué** (interblocage). Quatre tests montrent les quatre défauts de cette version.
+
+**Étape 3 — Les deux fourchettes d'un coup, sans verrou (partie 3.1).**
+Le philosophe demande « les deux ou aucune » en une seule requête. Le serveur traite plusieurs requêtes en
+parallèle : deux philosophes peuvent voir la même fourchette libre au même instant et l'obtenir tous les deux.
+Une petite pause ajoutée entre « vérifier » et « réserver » rend ce bug visible à chaque fois.
+
+**Étape 4 — On ajoute un verrou (partie 3.2).**
+« Vérifier puis réserver » devient une **section critique** : un verrou ne laisse passer qu'une requête à la
+fois. Résultat : plus aucun conflit, ni aucun blocage. Il reste un défaut : un philosophe peut attendre
+longtemps si ses voisins passent toujours avant lui (**famine**).
+
+**Étape 5 — On corrige le moniteur.**
+Le moniteur signalait parfois de **faux conflits** : le philosophe rendait ses fourchettes *avant* de dire
+« j'ai fini », alors son voisin pouvait annoncer « je mange » trop tôt. Maintenant, il dit « j'ai fini »
+*avant* de rendre ses fourchettes. Les messages indiquent aussi quelles fourchettes sont utilisées.
+
+**Étape 6 — Plus de superviseur : le protocole à jetons (partie 3.3).**
+Les philosophes s'organisent seuls, en s'envoyant des messages HTTP :
+- chaque fourchette a un **jeton unique** : seul celui qui le tient peut l'utiliser ;
+- un philosophe affamé envoie à tous « je veux telle et telle fourchette », avec la date de son horloge ;
+- celui qui tient un jeton le donne à la **demande la plus ancienne**. Même un affamé cède son jeton à plus
+  ancien que lui, donc personne ne reste bloqué. Et la plus ancienne demande finit toujours servie, donc
+  personne n'attend indéfiniment ;
+- un message perdu est renvoyé jusqu'à confirmation de réception. Chaque jeton porte un numéro, pour qu'un
+  message reçu deux fois ne crée jamais un second jeton.
+
+Résultat : **0 conflit**, même avec 20 % de messages perdus. Le détail et les justifications sont dans
+[docs/protocole-jetons.md](docs/protocole-jetons.md).
+
+**Étape 7 — Tout tester (partie 4).**
+77 tests, lancés par `mvn verify` :
+- **unitaires** : une pièce testée seule, les autres étant simulées avec Mockito ;
+- **concurrence** : plusieurs philosophes à la fois, un contrôleur vérifie à chaque repas qu'aucune fourchette
+  n'est partagée ;
+- **pannes** : messages perdus, retardés ou reçus deux fois ;
+- **intégration** : 3 vrais services qui se parlent en HTTP.
+
+**Étape 8 — Lancer et organiser.**
+Un script (`run-local.sh`) ou Docker Compose lance tout en une commande. Le code est rangé par service, puis
+par partie du sujet, dans le package `fr.cytech.hamoudilitim.philo`.
+
+---
+
+## 3. Démarrage rapide
 
 Prérequis : JDK 17 ou plus récent, et Maven 3.9 ou plus récent. Docker est optionnel.
 
@@ -52,7 +110,7 @@ open http://localhost:8080       # tableau de bord
 ```
 
 `run-local.sh [MODE] [PAIR_MODE] [N] [RACE_WINDOW]` lance N philosophes (5 par défaut) dans le mode choisi.
-Les journaux sont écrits dans `logs/`. Chaque partie a sa commande, donnée dans la [section 5](#5-les-parties-réalisées).
+Les journaux sont écrits dans `logs/`. Chaque partie a sa commande, donnée dans la [section 6](#6-les-parties-réalisées).
 
 Avec Docker :
 
@@ -62,7 +120,7 @@ MODE=TOKEN docker compose up --build
 
 ---
 
-## 3. Architecture
+## 4. Architecture
 
 ```
                         ┌──────────────────────┐
@@ -104,7 +162,7 @@ est une implémentation de cette interface, choisie au démarrage par `philo.mod
 
 ---
 
-## 4. Arborescence du projet
+## 5. Arborescence du projet
 
 Seuls les fichiers essentiels sont gardés : 4 modules Maven, un par service, plus le code partagé.
 
@@ -167,7 +225,7 @@ dining-philosophers/
 
 ---
 
-## 5. Les parties réalisées
+## 6. Les parties réalisées
 
 ### Partie 1 — Philosophes gâtés
 
@@ -324,7 +382,7 @@ curl localhost:8090/api/token/state                         # jetons, file d'att
 
 ---
 
-## 6. Tests
+## 7. Tests
 
 ```bash
 mvn verify                                                  # les 77 tests
@@ -353,7 +411,7 @@ mvn test -pl philosopher-service -am -Dtest='Token*'        # seulement ceux de 
 
 ---
 
-## 7. API HTTP
+## 8. API HTTP
 
 | Service | Méthode | Chemin | Effet |
 |---|---|---|---|
@@ -377,7 +435,7 @@ mvn test -pl philosopher-service -am -Dtest='Token*'        # seulement ceux de 
 
 ---
 
-## 8. Configuration
+## 9. Configuration
 
 Chaque propriété peut se passer en argument (`--philo.mode=TOKEN`) ou en variable d'environnement
 (`PHILO_MODE=TOKEN`).
@@ -385,7 +443,7 @@ Chaque propriété peut se passer en argument (`--philo.mode=TOKEN`) ou en varia
 | Propriété | Défaut | Rôle |
 |---|---|---|
 | `philo.id`, `philo.count` | 0, 5 | identifiant du philosophe et nombre total |
-| `philo.mode` | `SPOILED` | partie à exécuter (voir section 3) |
+| `philo.mode` | `SPOILED` | partie à exécuter (voir section 4) |
 | `philo.think-min/max`, `philo.eat-min/max` | 500ms / 2s | durées aléatoires de réflexion et de repas |
 | `philo.retry-delay`, `philo.http-timeout` | 100ms, 2s | nouvel essai si refus (2, 3.x), délai HTTP |
 | `philo.monitor-url`, `philo.supervisor-url` | localhost:8080 / 8081 | adresses des services |
@@ -400,7 +458,7 @@ Chaque propriété peut se passer en argument (`--philo.mode=TOKEN`) ou en varia
 
 ---
 
-## 9. Ce qu'il reste à faire
+## 10. Ce qu'il reste à faire
 
 ### Partie 3.4 — ZooKeeper
 - [ ] Ajouter ZooKeeper au `docker-compose.yml`, avec la dépendance `curator-recipes`.
