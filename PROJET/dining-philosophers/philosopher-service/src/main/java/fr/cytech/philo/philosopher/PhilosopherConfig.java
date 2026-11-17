@@ -10,6 +10,10 @@ import fr.cytech.philo.philosopher.core.Sleeper;
 import fr.cytech.philo.philosopher.strategy.NaiveSupervisorStrategy;
 import fr.cytech.philo.philosopher.strategy.PairSupervisorStrategy;
 import fr.cytech.philo.philosopher.strategy.SpoiledStrategy;
+import fr.cytech.philo.philosopher.token.ForkAssignment;
+import fr.cytech.philo.philosopher.token.TokenNode;
+import fr.cytech.philo.philosopher.token.TokenStrategy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -39,13 +43,16 @@ public class PhilosopherConfig {
     }
 
     @Bean
-    DiningStrategy diningStrategy(PhilosopherProperties props, SupervisorClient supervisor, Sleeper sleeper) {
+    DiningStrategy diningStrategy(PhilosopherProperties props, SupervisorClient supervisor, Sleeper sleeper,
+                                  ObjectProvider<TokenNode> tokenNode) {
         return switch (props.mode()) {
             case SPOILED -> new SpoiledStrategy();
             case NAIVE_SUPERVISOR -> new NaiveSupervisorStrategy(
                     props.id(), props.count(), supervisor, sleeper, props.retryDelay());
             case PAIR_SUPERVISOR -> new PairSupervisorStrategy(
                     props.id(), supervisor, sleeper, props.retryDelay());
+            case TOKEN -> new TokenStrategy(tokenNode.getObject(), ForkAssignment.of(props.token().assignment()),
+                    props.count(), props.token().retransmitInterval());
         };
     }
 
@@ -56,11 +63,15 @@ public class PhilosopherConfig {
         return new Philosopher(props.id(), strategy, reporter, clock, timing, sleeper);
     }
 
-    private static RestClient restClient(String baseUrl, PhilosopherProperties props) {
+    static RestClient restClient(String baseUrl, PhilosopherProperties props) {
         var factory = new SimpleClientHttpRequestFactory();
         int timeout = (int) props.httpTimeout().toMillis();
         factory.setConnectTimeout(timeout);
         factory.setReadTimeout(timeout);
-        return RestClient.builder().baseUrl(baseUrl).requestFactory(factory).build();
+        RestClient.Builder builder = RestClient.builder().requestFactory(factory);
+        if (baseUrl != null) {
+            builder.baseUrl(baseUrl);
+        }
+        return builder.build();
     }
 }

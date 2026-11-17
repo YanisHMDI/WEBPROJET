@@ -3,7 +3,10 @@ package fr.cytech.philo.philosopher;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
+import fr.cytech.philo.philosopher.token.ForkAssignment;
+
 import java.time.Duration;
+import java.util.List;
 
 /**
  * Configuration d'un philosophe (une instance = un microservice).
@@ -20,6 +23,7 @@ import java.time.Duration;
  * @param autoStart     démarrer la boucle dès que l'application est prête
  * @param monitorUrl    URL du monitor-service
  * @param supervisorUrl URL du supervisor-service (modes NAIVE_SUPERVISOR et PAIR_SUPERVISOR)
+ * @param token         paramètres du protocole à jetons (mode TOKEN)
  */
 @ConfigurationProperties(prefix = "philo")
 public record PhilosopherProperties(
@@ -34,7 +38,8 @@ public record PhilosopherProperties(
         @DefaultValue("2s") Duration httpTimeout,
         @DefaultValue("true") boolean autoStart,
         @DefaultValue("http://localhost:8080") String monitorUrl,
-        @DefaultValue("http://localhost:8081") String supervisorUrl) {
+        @DefaultValue("http://localhost:8081") String supervisorUrl,
+        @DefaultValue Token token) {
 
     public PhilosopherProperties {
         if (count < 2) {
@@ -48,14 +53,34 @@ public record PhilosopherProperties(
         }
     }
 
+    /**
+     * Partie 3.3.
+     *
+     * @param peers              URL de chaque philosophe, dans l'ordre des identifiants (y compris soi-même)
+     * @param assignment         règle d'attribution des deux fourchettes d'un repas
+     * @param retransmitInterval délai sans réponse avant de réémettre sa demande
+     * @param retryDelay         délai avant de réémettre un jeton non acquitté
+     * @param dropRate           injection de pannes : probabilité de perdre un message ou son accusé (0 = off)
+     * @param maxDelay           injection de pannes : latence réseau aléatoire maximale (0 = off)
+     */
+    public record Token(
+            @DefaultValue List<String> peers,
+            @DefaultValue("RANDOM") ForkAssignment.Rule assignment,
+            @DefaultValue("1s") Duration retransmitInterval,
+            @DefaultValue("200ms") Duration retryDelay,
+            @DefaultValue("0") double dropRate,
+            @DefaultValue("0ms") Duration maxDelay) {
+    }
+
     public enum Mode {
         /** Partie 1 : aucune ressource partagée. */
         SPOILED,
         /** Partie 2 : demande fourchette par fourchette au superviseur naïf. */
         NAIVE_SUPERVISOR,
         /** Parties 3.1 / 3.2 : demande des deux fourchettes en une requête. */
-        PAIR_SUPERVISOR
-        // Partie 3.3 : ajouter TOKEN (protocole distribué, sans superviseur).
+        PAIR_SUPERVISOR,
+        /** Partie 3.3 : protocole distribué à jetons, sans superviseur. */
+        TOKEN
         // Partie 3.4 : ajouter ZOOKEEPER (verrou distribué).
     }
 }

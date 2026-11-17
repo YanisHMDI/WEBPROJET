@@ -1,6 +1,6 @@
 # Le dîner des philosophes en microservices
 
-Projet Spring Boot (Java 17, Maven multi-modules). Cette base couvre les **parties 1, 2, 3.1 et 3.2** du sujet.
+Projet Spring Boot (Java 17, Maven multi-modules). Le projet couvre les **parties 1, 2, 3.1, 3.2 et 3.3** du sujet. Le protocole à jetons est décrit et justifié dans [docs/protocole-jetons.md](docs/protocole-jetons.md).
 
 ## Architecture
 
@@ -33,7 +33,7 @@ Projet Spring Boot (Java 17, Maven multi-modules). Cette base couvre les **parti
 | `SPOILED` | `SpoiledStrategy` (rien à partager) | 1 |
 | `NAIVE_SUPERVISOR` | `NaiveSupervisorStrategy` (gauche puis droite, en gardant la gauche) | 2 |
 | `PAIR_SUPERVISOR` | `PairSupervisorStrategy` (les deux en une requête) + `supervisor.pair-mode=UNSAFE` ou `LOCKED` | 3.1 / 3.2 |
-| *à faire* `TOKEN` | protocole distribué à jetons | 3.3 |
+| `TOKEN` | `TokenStrategy` + `TokenNode` : protocole à jetons pair-à-pair, sans superviseur | 3.3 |
 | *à faire* `ZOOKEEPER` | verrou distribué Curator | 3.4 |
 
 ## Lancer
@@ -48,6 +48,8 @@ mvn verify                                           # build + tous les tests
 ./scripts/run-local.sh NAIVE_SUPERVISOR              # partie 2 → finit souvent en interblocage
 ./scripts/run-local.sh PAIR_SUPERVISOR UNSAFE 5 20ms # partie 3.1 → violations visibles
 ./scripts/run-local.sh PAIR_SUPERVISOR LOCKED        # partie 3.2 → aucune violation
+./scripts/run-local.sh TOKEN                         # partie 3.3 → jetons, sans superviseur
+DROP_RATE=0.2 MAX_DELAY=50ms ./scripts/run-local.sh TOKEN   # 3.3 avec pannes réseau simulées
 ./scripts/stop-local.sh
 
 # Avec Docker
@@ -65,7 +67,7 @@ les courses deviennent quasi systématiques, ce qui rend les bugs démontrables.
 
 | Service | Méthode | Chemin | Effet |
 |---|---|---|---|
-| monitor | POST | `/api/events` | reçoit `{philosopherId, type, lamport, timestamp}` |
+| monitor | POST | `/api/events` | reçoit `{philosopherId, type, lamport, timestamp, forks}` |
 | monitor | GET | `/api/events?limit=200` | historique trié par (lamport, id) |
 | monitor | GET | `/api/state` | état, repas, conflits |
 | monitor | DELETE | `/api/events` | réinitialise |
@@ -77,31 +79,37 @@ les courses deviennent quasi systématiques, ce qui rend les bugs démontrables.
 | supervisor | POST | `/api/pairs/{p}/release` | 3.1/3.2 |
 | philosopher | GET | `/api/status` | état, repas, horloge |
 | philosopher | POST | `/api/start`, `/api/stop` | démarre / arrête la boucle |
+| philosopher | POST | `/api/token/request` | 3.3 : demande horodatée `{requester, meal, lamport, forks}` |
+| philosopher | POST | `/api/token/transfer` | 3.3 : jeton `{fork, seq, from, to, lamport, released}` |
+| philosopher | POST | `/api/token/release` | 3.3 : fin de demande `{requester, meal, lamport}` |
+| philosopher | GET | `/api/token/state` | 3.3 : jetons détenus, en transit, file d'attente, statistiques |
 
-## Tests déjà présents
+## Tests
 
 | Test | Ce qu'il montre |
 |---|---|
 | `LamportClockTest` | règles de Lamport, pas de perte de tick en concurrence |
-| `EventStoreTest`, `EventControllerTest` | cycle d'états, événements hors ordre ignorés, tri de Lamport, détection de conflit voisin |
+| `EventStoreTest`, `EventControllerTest` | cycle d'états, événements hors ordre ignorés, tri de Lamport, détection de conflit (voisins ou fourchettes annoncées) |
 | `NaiveForkServiceTest` | **les 4 failles de la partie 2** : interblocage (attente circulaire), course check-then-act, libération par un non-propriétaire, absence de contrôle global |
 | `PairStrategyConcurrencyTest` | 3.1 : deux voisins obtiennent la même fourchette ; 3.2 : un seul est servi ; stress N × 300 repas sans violation ni blocage |
 | `SupervisorApiTest` | contrat HTTP du superviseur (MockMvc) |
-| `PhilosopherTest` | ordre HUNGRY → acquire → EATING → release → DONE, horloge croissante, fourchettes rendues même si interrompu (Mockito) |
+| `PhilosopherTest` | ordre HUNGRY → acquire → EATING → DONE → release (DONE avant la restitution : pas de faux conflit), horloge croissante, fourchettes rendues même si interrompu (Mockito) |
 | `SupervisorStrategiesTest` | gauche puis droite, retentatives (Mockito) |
 | `SupervisorClientTest` | contrat HTTP côté philosophe, panne serveur = refus (MockRestServiceServer) |
+| `TokenNodeTest`, `TokenStrategyTest`, `ForkAssignmentTest` | 3.3 unitaire (Mockito) : horodatage, priorité, préemption, doublons, demandes périmées, réémissions |
+| `TokenProtocolSimulationTest` | 3.3 concurrence + résilience : 5 à 7 philosophes, oracle global, 20 % de pertes / doublons / latence → 0 violation, pas de famine, jetons conservés |
+| `TokenHttpIntegrationTest` | 3.3 intégration : 3 vrais services Spring Boot en HTTP, 0 conflit, philosophe arrêté qui cède ses jetons |
 
 ## Ce qu'il reste à faire
 
-### Partie 3.3 — protocole distribué à jetons (le cœur du projet)
-- [ ] Choisir et justifier l'algorithme. Pistes : **Chandy-Misra** (fourchettes « sales/propres », conçu pour ce problème, sans interblocage ni famine) ou une adaptation de **Ricart-Agrawala / Suzuki-Kasami** par fourchette.
-- [ ] Règle d'attribution des deux fourchettes (le sujet dit « fourchettes quelconques ») — ex. F_i et F_{(i+1) mod N}, ou attribution par hachage, à documenter.
-- [ ] `TokenStrategy implements DiningStrategy` + nouveau mode `TOKEN`.
-- [ ] Endpoints pair-à-pair dans `philosopher-service` : `POST /api/token/request` (id + horodatage Lamport), `POST /api/token/transfer`. Appeler `clock.onReceive()` à chaque réception.
-- [ ] File des demandes en attente, triée par (lamport, id) → équité.
-- [ ] Concurrence côté philosophe : les requêtes entrantes arrivent sur les threads Tomcat pendant que la boucle tourne → protéger l'état du jeton (verrou ou acteur unique).
-- [ ] Timeouts + retransmission idempotente (identifiant de demande pour ignorer les doublons).
-- [ ] Analyse interblocage / famine dans le rapport.
+### Partie 3.3 — protocole distribué à jetons
+- [x] Algorithme : priorité de Lamport par fourchette, avec préemption des affamés moins prioritaires (voir `docs/protocole-jetons.md`).
+- [x] Règle d'attribution : F_i plus une fourchette quelconque (`RANDOM`), ou la table ronde (`NEIGHBOURS`).
+- [x] Diffusion, réception et mémorisation des demandes horodatées ; file triée par (lamport, id).
+- [x] Concurrence locale : état sous verrou, envois HTTP hors verrou.
+- [x] Réémission des demandes, jetons réémis jusqu'à l'accusé, doublons ignorés (numéro de transfert).
+- [x] Analyse de l'interblocage, de la famine et de l'équité, avec les limites (crash d'un détenteur de jeton).
+- [ ] Rapport : captures du tableau de bord et traces analysées en mode TOKEN.
 
 ### Partie 3.4 — ZooKeeper
 - [ ] Ajouter ZooKeeper au `docker-compose.yml`, dépendance `curator-recipes`.
@@ -109,11 +117,12 @@ les courses deviennent quasi systématiques, ce qui rend les bugs démontrables.
 - [ ] Comparer avec 3.3 : nombre de messages par repas, latence, équité, tolérance aux pannes, complexité.
 
 ### Partie 4 — tests à compléter
-- [ ] Tests unitaires du protocole à jetons (réception de demande, transfert, file d'attente, doublons).
-- [ ] Tests d'intégration multi-services : plusieurs contextes Spring sur des ports aléatoires, ou Testcontainers.
-- [ ] Concurrence sur le protocole distribué : vérifier via `/api/state` du moniteur que `conflicts` reste vide.
-- [ ] Résilience : délais (Resilience4j / WireMock), philosophe arrêté pendant qu'il détient un jeton, perte de messages.
-- [ ] Section « ce que les tests prouvent / ce qui demanderait une vérification formelle » (TLA+, model checking).
+- [x] Tests unitaires du protocole à jetons (réception de demande, transfert, file d'attente, doublons).
+- [x] Tests d'intégration multi-services : plusieurs contextes Spring sur des ports aléatoires (`TokenHttpIntegrationTest`).
+- [x] Concurrence sur le protocole distribué (`TokenProtocolSimulationTest`, oracle global).
+- [x] Résilience 3.3 : pertes, doublons et latence (`ChaosTransport`), philosophe arrêté qui détient un jeton.
+- [ ] Résilience : crash définitif d'un détenteur de jeton (limite connue), Resilience4j côté superviseur.
+- [x] Section « ce que les tests prouvent / ce qui demanderait une vérification formelle » pour 3.3 (`docs/protocole-jetons.md` §8).
 - [ ] Limite connue à traiter : si la réponse d'un `acquire` est perdue, la fourchette reste attribuée (voir `SupervisorClient`).
 
 ### Partie 5 — Master–Worker sur un graphe

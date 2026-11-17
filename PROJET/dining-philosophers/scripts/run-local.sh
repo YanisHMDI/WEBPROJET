@@ -5,6 +5,9 @@
 #   ./scripts/run-local.sh NAIVE_SUPERVISOR
 #   ./scripts/run-local.sh PAIR_SUPERVISOR UNSAFE 5 20ms
 #   ./scripts/run-local.sh PAIR_SUPERVISOR LOCKED
+#   ./scripts/run-local.sh TOKEN                      # partie 3.3 (PAIR_MODE ignoré)
+#   DROP_RATE=0.2 MAX_DELAY=50ms ./scripts/run-local.sh TOKEN   # 3.3 avec pannes réseau simulées
+#   ASSIGNMENT=NEIGHBOURS ./scripts/run-local.sh TOKEN          # 3.3 avec la table ronde classique
 set -euo pipefail
 
 MODE="${1:-SPOILED}"
@@ -35,9 +38,13 @@ start monitor monitor-service/target/monitor-service.jar \
 start supervisor supervisor-service/target/supervisor-service.jar \
   --supervisor.forks="$N" --supervisor.pair-mode="$PAIR_MODE" --supervisor.race-window="$RACE_WINDOW"
 sleep 6
+PEERS=""
+for ((i = 0; i < N; i++)); do PEERS+="${PEERS:+,}http://localhost:$((8090 + i))"; done
 for ((i = 0; i < N; i++)); do
   start "philo-$i" philosopher-service/target/philosopher-service.jar \
-    --server.port=$((8090 + i)) --philo.id="$i" --philo.count="$N" --philo.mode="$MODE"
+    --server.port=$((8090 + i)) --philo.id="$i" --philo.count="$N" --philo.mode="$MODE" \
+    --philo.token.peers="$PEERS" --philo.token.assignment="${ASSIGNMENT:-RANDOM}" \
+    --philo.token.drop-rate="${DROP_RATE:-0}" --philo.token.max-delay="${MAX_DELAY:-0ms}"
 done
 
 echo
