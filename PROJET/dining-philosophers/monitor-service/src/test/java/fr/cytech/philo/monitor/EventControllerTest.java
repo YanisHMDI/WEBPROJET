@@ -1,4 +1,4 @@
-package fr.cytech.philo.monitor.web;
+package fr.cytech.philo.monitor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

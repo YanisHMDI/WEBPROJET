@@ -106,91 +106,64 @@ est une implémentation de cette interface, choisie au démarrage par `philo.mod
 
 ## 4. Arborescence du projet
 
+Seuls les fichiers essentiels sont gardés : 4 modules Maven, un par service, plus le code partagé.
+
+En Java, le code d'un module se trouve toujours dans `src/main/java/fr/cytech/philo/<module>/`. Le schéma
+ci-dessous montre directement ce qu'il y a au fond de ce dossier. Les tests sont rangés de la même façon dans
+`src/test/java/`.
+
 ```
 dining-philosophers/
-├── pom.xml                         POM parent : Spring Boot 3.3.5, Java 17, déclare les 4 modules
-├── Dockerfile                      image générique, un module au choix (--build-arg MODULE=…)
-├── docker-compose.yml              moniteur + superviseur + 5 philosophes
-├── README.md
-├── docs/
-│   └── protocole-jetons.md         conception et justification du protocole de la partie 3.3
-├── scripts/
-│   ├── run-local.sh                lance tout en local, sans Docker
-│   └── stop-local.sh
+├── pom.xml  Dockerfile  docker-compose.yml  README.md
+├── docs/protocole-jetons.md        conception et justification de la partie 3.3
+├── scripts/                        run-local.sh, stop-local.sh
 │
-├── common/                         ── code partagé par tous les services
-│   └── src/main/java/fr/cytech/philo/common/
-│       ├── LamportClock.java       horloge logique thread-safe : tick() et onReceive(t)
-│       ├── PhilosopherEvent.java   événement envoyé au moniteur (id, type, lamport, heure, fourchettes)
-│       ├── EventType.java          HUNGRY, EATING, DONE
-│       └── ForkTopology.java       table ronde : P_i utilise F_i et F_{(i+1) mod N}
+├── common/                         code partagé
+│   ├── LamportClock.java           horloge logique
+│   ├── PhilosopherEvent.java       événement envoyé au moniteur
+│   ├── EventType.java              HUNGRY, EATING, DONE
+│   └── ForkTopology.java           table ronde : P_i utilise F_i et F_{i+1}
 │
-├── monitor-service/                ── observateur (:8080)
-│   └── src/main/
-│       ├── java/fr/cytech/philo/monitor/
-│       │   ├── MonitorApplication.java
-│       │   ├── MonitorProperties.java
-│       │   ├── service/EventStore.java       historique, état par philosophe, détection des conflits
-│       │   ├── web/EventController.java      API REST /api/events, /api/state
-│       │   └── model/                        Conflict, DashboardSnapshot, PhilosopherState,
-│       │                                     PhilosopherView, RecordedEvent
-│       └── resources/
-│           ├── application.yml
-│           └── static/index.html             tableau de bord (rafraîchi toutes les secondes)
+├── monitor-service/                tableau de bord (:8080)
+│   ├── EventStore.java             historique, état de chaque philosophe, détection des conflits
+│   ├── EventController.java        API /api/events, /api/state
+│   ├── MonitorModel.java           données renvoyées par l'API
+│   ├── MonitorApplication.java, MonitorProperties.java
+│   └── static/index.html           la page du tableau de bord
 │
-├── supervisor-service/             ── gestionnaire central des fourchettes (:8081), parties 2 et 3.1/3.2
-│   └── src/main/java/fr/cytech/philo/supervisor/
-│       ├── SupervisorApplication.java
-│       ├── SupervisorConfig.java             choisit UNSAFE ou LOCKED (supervisor.pair-mode)
-│       ├── SupervisorProperties.java
-│       ├── fork/
-│       │   ├── ForkTable.java                propriétaire de chaque fourchette + compteur de violations
-│       │   ├── NaiveForkService.java         partie 2 : fourchette par fourchette, sans contrôle
-│       │   ├── PairStrategy.java             parties 3.1/3.2 : « les deux ou aucune »
-│       │   ├── UnsafePairStrategy.java       partie 3.1 : vérifier puis réserver, sans verrou
-│       │   ├── LockedPairStrategy.java       partie 3.2 : même chose dans une section critique
-│       │   └── RaceWindow.java               pause réglable pour rendre les courses visibles
-│       └── web/                              ForkController, PairController, GrantResponse, ApiErrors
+├── supervisor-service/             gestion centrale des fourchettes (:8081), parties 2, 3.1, 3.2
+│   ├── SupervisorController.java   API /api/forks (partie 2), /api/pairs (3.1, 3.2)
+│   ├── SupervisorApplication.java, SupervisorConfig.java, SupervisorProperties.java
+│   └── fork/
+│       ├── ForkTable.java          qui tient chaque fourchette, compteur de violations
+│       ├── NaiveForkService.java   partie 2
+│       ├── PairStrategy.java       3.1 / 3.2 : « les deux ou aucune »
+│       ├── UnsafePairStrategy.java 3.1 : sans verrou
+│       ├── LockedPairStrategy.java 3.2 : avec verrou
+│       └── RaceWindow.java         pause pour rendre les courses visibles
 │
-└── philosopher-service/            ── un philosophe (:8090 et suivants)
-    └── src/main/java/fr/cytech/philo/philosopher/
-        ├── PhilosopherApplication.java
-        ├── PhilosopherProperties.java        toute la configuration philo.*
-        ├── PhilosopherConfig.java            assemble la stratégie selon philo.mode
-        ├── PhilosopherRunner.java            fait tourner la boucle dans un thread dédié
-        ├── TokenConfig.java                  beans du mode TOKEN
-        ├── core/
-        │   ├── Philosopher.java              boucle Penser → Faim → Manger, émission des événements
-        │   ├── DiningStrategy.java           interface : acquireForks / releaseForks / currentForks
-        │   ├── EventReporter.java            interface d'envoi au moniteur
-        │   └── Sleeper.java                  abstraction de Thread.sleep (tests sans attente)
-        ├── strategy/                         parties 1 à 3.2
-        │   ├── SpoiledStrategy.java
-        │   ├── NaiveSupervisorStrategy.java
-        │   └── PairSupervisorStrategy.java
-        ├── token/                            partie 3.3 : protocole à jetons
-        │   ├── TokenNode.java                cœur du protocole (état local, règle de transfert)
-        │   ├── TokenStrategy.java            branche le protocole sur la boucle du philosophe
-        │   ├── TokenRequest.java             message : demande horodatée
-        │   ├── TokenTransfer.java            message : jeton d'une fourchette
-        │   ├── TokenRelease.java             message : fin de demande
-        │   ├── ForkAssignment.java           règle d'attribution des deux fourchettes
-        │   ├── TokenTransport.java           interface d'envoi des messages
-        │   ├── HttpTokenTransport.java       envoi en HTTP
-        │   ├── ChaosTransport.java           injection de pannes : pertes, doublons, latence
-        │   ├── Dispatcher.java               interface d'exécution des envois
-        │   ├── PeerDispatcher.java           un fil d'envoi par destinataire
-        │   └── PeerDirectory.java            adresses des autres philosophes
-        ├── client/
-        │   ├── SupervisorClient.java         client HTTP du superviseur
-        │   └── HttpEventReporter.java        envoi des événements au moniteur
-        └── web/
-            ├── PhilosopherController.java    /api/status, /api/start, /api/stop
-            ├── TokenController.java          /api/token/* (mode TOKEN)
-            └── ApiErrors.java                erreurs 400 au format ProblemDetail
+└── philosopher-service/            un philosophe (:8090 et suivants)
+    ├── PhilosopherApplication.java, PhilosopherConfig.java, PhilosopherProperties.java, PhilosopherRunner.java
+    ├── core/                       la boucle du philosophe, commune à toutes les parties
+    │   ├── Philosopher.java        Penser → Faim → Manger
+    │   ├── DiningStrategy.java     comment obtenir et rendre les fourchettes (une version par partie)
+    │   ├── EventReporter.java, HttpEventReporter.java   envoi des événements au moniteur
+    │   └── Sleeper.java
+    ├── strategy/                   parties 1, 2, 3.1, 3.2
+    │   ├── SpoiledStrategy.java          partie 1
+    │   ├── NaiveSupervisorStrategy.java  partie 2
+    │   ├── PairSupervisorStrategy.java   3.1 / 3.2
+    │   └── SupervisorClient.java         appels HTTP au superviseur
+    ├── token/                      partie 3.3 : protocole à jetons
+    │   ├── TokenNode.java          le cœur du protocole
+    │   ├── TokenStrategy.java      branche le protocole sur la boucle, et règle d'attribution des fourchettes
+    │   ├── TokenMessages.java      les 3 messages : demande, jeton, libération
+    │   ├── TokenTransport.java     envoi en HTTP, injection de pannes, adresses des pairs
+    │   └── Dispatcher.java         envois en arrière-plan, un fil par destinataire
+    └── web/
+        ├── PhilosopherController.java   /api/status, /api/start, /api/stop
+        └── TokenController.java         /api/token/* (partie 3.3)
 ```
-
-Les tests suivent la même arborescence sous `src/test/java/` (détail en [section 6](#6-tests)).
 
 ---
 

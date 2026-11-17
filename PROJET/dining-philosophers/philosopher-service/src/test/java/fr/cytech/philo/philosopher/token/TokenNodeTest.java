@@ -1,6 +1,10 @@
 package fr.cytech.philo.philosopher.token;
 
 import fr.cytech.philo.common.LamportClock;
+import fr.cytech.philo.philosopher.token.TokenMessages.TokenRelease;
+import fr.cytech.philo.philosopher.token.TokenMessages.TokenRequest;
+import fr.cytech.philo.philosopher.token.TokenMessages.TokenTransfer;
+import fr.cytech.philo.philosopher.token.TokenTransport.ChaosTransport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

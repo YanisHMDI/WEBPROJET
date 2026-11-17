@@ -1,4 +1,4 @@
-package fr.cytech.philo.supervisor.web;
+package fr.cytech.philo.supervisor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

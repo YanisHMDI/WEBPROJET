@@ -1,4 +1,4 @@
-package fr.cytech.philo.philosopher.client;
+package fr.cytech.philo.philosopher.core;
 
 import fr.cytech.philo.common.PhilosopherEvent;
 import fr.cytech.philo.philosopher.core.EventReporter;

@@ -1,9 +1,8 @@
 package fr.cytech.philo.philosopher;
 
+import fr.cytech.philo.philosopher.token.TokenStrategy.ForkAssignment;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
-
-import fr.cytech.philo.philosopher.token.ForkAssignment;
 
 import java.time.Duration;
 import java.util.List;

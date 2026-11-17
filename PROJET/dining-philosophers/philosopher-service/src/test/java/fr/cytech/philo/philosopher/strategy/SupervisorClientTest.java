@@ -1,4 +1,4 @@
-package fr.cytech.philo.philosopher.client;
+package fr.cytech.philo.philosopher.strategy;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

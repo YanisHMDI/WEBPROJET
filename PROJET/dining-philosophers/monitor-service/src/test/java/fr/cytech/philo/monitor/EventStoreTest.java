@@ -1,10 +1,10 @@
-package fr.cytech.philo.monitor.service;
+package fr.cytech.philo.monitor;
 
 import fr.cytech.philo.common.EventType;
 import fr.cytech.philo.common.PhilosopherEvent;
+import fr.cytech.philo.monitor.MonitorModel.PhilosopherState;
+import fr.cytech.philo.monitor.MonitorModel.RecordedEvent;
 import fr.cytech.philo.monitor.MonitorProperties;
-import fr.cytech.philo.monitor.model.PhilosopherState;
-import fr.cytech.philo.monitor.model.RecordedEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

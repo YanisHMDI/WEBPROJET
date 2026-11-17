@@ -1,11 +1,13 @@
 package fr.cytech.philo.philosopher.web;
 
+import fr.cytech.philo.philosopher.token.TokenMessages.TokenRelease;
+import fr.cytech.philo.philosopher.token.TokenMessages.TokenRequest;
+import fr.cytech.philo.philosopher.token.TokenMessages.TokenTransfer;
 import fr.cytech.philo.philosopher.token.TokenNode;
-import fr.cytech.philo.philosopher.token.TokenRelease;
-import fr.cytech.philo.philosopher.token.TokenRequest;
-import fr.cytech.philo.philosopher.token.TokenTransfer;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -49,5 +51,11 @@ public class TokenController {
     @GetMapping("/state")
     public TokenNode.State state() {
         return node.state();
+    }
+
+    /** Message invalide (fourchette ou philosophe hors bornes, jeton mal adressé) : 400. */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ProblemDetail badRequest(IllegalArgumentException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
     }
 }

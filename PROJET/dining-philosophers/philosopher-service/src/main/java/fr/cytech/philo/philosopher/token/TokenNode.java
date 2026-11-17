@@ -1,6 +1,9 @@
 package fr.cytech.philo.philosopher.token;
 
 import fr.cytech.philo.common.LamportClock;
+import fr.cytech.philo.philosopher.token.TokenMessages.TokenRelease;
+import fr.cytech.philo.philosopher.token.TokenMessages.TokenRequest;
+import fr.cytech.philo.philosopher.token.TokenMessages.TokenTransfer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

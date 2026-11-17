@@ -1,6 +1,5 @@
 package fr.cytech.philo.philosopher.strategy;
 
-import fr.cytech.philo.philosopher.client.SupervisorClient;
 import fr.cytech.philo.philosopher.core.Sleeper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

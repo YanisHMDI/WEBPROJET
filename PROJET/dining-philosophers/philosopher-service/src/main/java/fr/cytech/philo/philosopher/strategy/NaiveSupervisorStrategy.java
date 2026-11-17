@@ -1,7 +1,6 @@
 package fr.cytech.philo.philosopher.strategy;
 
 import fr.cytech.philo.common.ForkTopology;
-import fr.cytech.philo.philosopher.client.SupervisorClient;
 import fr.cytech.philo.philosopher.core.DiningStrategy;
 import fr.cytech.philo.philosopher.core.Sleeper;
 import org.slf4j.Logger;

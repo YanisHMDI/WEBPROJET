@@ -1,9 +1,8 @@
-package fr.cytech.philo.monitor.web;
+package fr.cytech.philo.monitor;
 
 import fr.cytech.philo.common.PhilosopherEvent;
-import fr.cytech.philo.monitor.model.DashboardSnapshot;
-import fr.cytech.philo.monitor.model.RecordedEvent;
-import fr.cytech.philo.monitor.service.EventStore;
+import fr.cytech.philo.monitor.MonitorModel.DashboardSnapshot;
+import fr.cytech.philo.monitor.MonitorModel.RecordedEvent;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.DeleteMapping;

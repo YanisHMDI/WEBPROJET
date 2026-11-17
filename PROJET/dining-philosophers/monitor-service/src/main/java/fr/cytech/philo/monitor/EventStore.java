@@ -1,14 +1,14 @@
-package fr.cytech.philo.monitor.service;
+package fr.cytech.philo.monitor;
 
 import fr.cytech.philo.common.EventType;
 import fr.cytech.philo.common.ForkTopology;
 import fr.cytech.philo.common.PhilosopherEvent;
+import fr.cytech.philo.monitor.MonitorModel.Conflict;
+import fr.cytech.philo.monitor.MonitorModel.DashboardSnapshot;
+import fr.cytech.philo.monitor.MonitorModel.PhilosopherState;
+import fr.cytech.philo.monitor.MonitorModel.PhilosopherView;
+import fr.cytech.philo.monitor.MonitorModel.RecordedEvent;
 import fr.cytech.philo.monitor.MonitorProperties;
-import fr.cytech.philo.monitor.model.Conflict;
-import fr.cytech.philo.monitor.model.DashboardSnapshot;
-import fr.cytech.philo.monitor.model.PhilosopherState;
-import fr.cytech.philo.monitor.model.PhilosopherView;
-import fr.cytech.philo.monitor.model.RecordedEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
