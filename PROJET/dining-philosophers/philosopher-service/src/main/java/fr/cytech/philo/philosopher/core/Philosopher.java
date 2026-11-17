@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -68,22 +69,24 @@ public class Philosopher implements Runnable {
         sleeper.sleep(randomBetween(timing.thinkMin(), timing.thinkMax()));
 
         state = State.HUNGRY;
-        emit(EventType.HUNGRY);
+        emit(EventType.HUNGRY, List.of());
         strategy.acquireForks();
 
         try {
             state = State.EATING;
-            emit(EventType.EATING);
+            emit(EventType.EATING, strategy.currentForks());
             sleeper.sleep(randomBetween(timing.eatMin(), timing.eatMax()));
+            meals.incrementAndGet();
         } finally {
+            // DONE part AVANT la restitution, même si le repas est interrompu : sinon un autre philosophe
+            // pourrait prendre la fourchette et annoncer EATING avant que notre DONE n'arrive → faux conflit.
+            emit(EventType.DONE, List.of());
             strategy.releaseForks();
         }
-        meals.incrementAndGet();
-        emit(EventType.DONE);
     }
 
-    private void emit(EventType type) {
-        reporter.report(PhilosopherEvent.of(id, type, clock.tick()));
+    private void emit(EventType type, List<Integer> forks) {
+        reporter.report(PhilosopherEvent.of(id, type, clock.tick(), forks));
     }
 
     static Duration randomBetween(Duration min, Duration max) {

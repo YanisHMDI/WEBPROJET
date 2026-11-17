@@ -53,7 +53,7 @@
         <section>
             <h2>Philosophes</h2>
             <table>
-                <thead><tr><th>#</th><th>État</th><th>Repas</th><th>Horloge</th><th>Vu à</th></tr></thead>
+                <thead><tr><th>#</th><th>État</th><th>Repas</th><th>Fourchettes</th><th>Horloge</th><th>Vu à</th></tr></thead>
                 <tbody id="philosophers"></tbody>
             </table>
         </section>
@@ -61,7 +61,7 @@
             <h2>Historique (ordre de Lamport)</h2>
             <div class="events">
                 <table>
-                    <thead><tr><th>Lamport</th><th>Philosophe</th><th>Événement</th><th>Reçu n°</th></tr></thead>
+                    <thead><tr><th>Lamport</th><th>Philosophe</th><th>Événement</th><th>Fourchettes</th><th>Reçu n°</th></tr></thead>
                     <tbody id="events"></tbody>
                 </table>
             </div>
@@ -100,14 +100,14 @@
             drawTable(state.philosophers);
             document.getElementById('philosophers').innerHTML = state.philosophers.map(p =>
                 `<tr><td>P${p.id}</td><td><span class="pill ${p.state}">${labels[p.state]}</span></td>
-                 <td>${p.meals}</td><td>${p.lastLamport}</td><td>${fmtTime(p.lastSeen)}</td></tr>`).join('');
+                 <td>${p.meals}</td><td>${(p.forks || []).map(f => 'F' + f).join(' ') || '—'}</td><td>${p.lastLamport}</td><td>${fmtTime(p.lastSeen)}</td></tr>`).join('');
             document.getElementById('conflicts').innerHTML = state.conflicts.length === 0
-                ? '<p class="ok">Aucun voisin n\'a mangé en même temps.</p>'
-                : `<p class="conflict"><strong>${state.conflicts.length} violation(s)</strong> : deux voisins ont mangé avec la même fourchette.</p>
+                ? '<p class="ok">Aucune fourchette n\'a été utilisée par deux philosophes à la fois.</p>'
+                : `<p class="conflict"><strong>${state.conflicts.length} violation(s)</strong> : deux philosophes ont mangé avec la même fourchette.</p>
                    <table>${state.conflicts.slice(-10).reverse().map(c =>
-                    `<tr class="conflict"><td>P${c.philosopher} & P${c.neighbour}</td><td>F${c.sharedFork}</td><td>${fmtTime(c.detectedAt)}</td></tr>`).join('')}</table>`;
+                    `<tr class="conflict"><td>P${c.philosopher} & P${c.other}</td><td>F${c.sharedFork}</td><td>${fmtTime(c.detectedAt)}</td></tr>`).join('')}</table>`;
             document.getElementById('events').innerHTML = events.slice().reverse().map(e =>
-                `<tr><td>${e.event.lamport}</td><td>P${e.event.philosopherId}</td><td>${e.event.type}</td><td>${e.sequence}</td></tr>`).join('');
+                `<tr><td>${e.event.lamport}</td><td>P${e.event.philosopherId}</td><td>${e.event.type}</td><td>${(e.event.forks || []).map(f => 'F' + f).join(' ')}</td><td>${e.sequence}</td></tr>`).join('');
         } catch (err) {
             document.getElementById('meta').textContent = 'moniteur injoignable';
         }

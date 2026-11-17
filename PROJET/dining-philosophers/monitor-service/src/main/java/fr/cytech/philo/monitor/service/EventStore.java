@@ -23,6 +23,11 @@ import java.util.List;
 /**
  * Stocke les événements reçus et reconstruit l'état de chaque philosophe.
  * <p>
+ * Exclusion mutuelle : quand un philosophe passe EATING, on vérifie qu'aucun autre philosophe en train
+ * de manger ne tient une de ses fourchettes. Cette détection est sans faux positif car chaque philosophe
+ * envoie (de façon synchrone) DONE avant de rendre ses fourchettes ; elle peut en revanche manquer un
+ * chevauchement très court si un EATING arrive en retard : c'est un observateur, pas une preuve.
+ * <p>
  * Les messages HTTP peuvent arriver dans le désordre : pour un même philosophe, un événement
  * dont l'horloge de Lamport est inférieure ou égale à la dernière vue est conservé dans
  * l'historique mais n'écrase pas l'état courant (événement "périmé").
@@ -77,23 +82,35 @@ public class EventStore {
 
         PhilosopherState next = PhilosopherState.after(event.type());
         int meals = previous.meals() + (event.type() == EventType.DONE ? 1 : 0);
-        views[id] = new PhilosopherView(id, next, meals, event.lamport(), now);
+        List<Integer> forks = next == PhilosopherState.EATING ? forksOf(event) : List.of();
+        views[id] = new PhilosopherView(id, next, meals, event.lamport(), now, forks);
 
         if (next == PhilosopherState.EATING && properties.detectNeighbourConflicts()) {
-            detectConflicts(id, recorded.sequence(), now);
+            detectConflicts(id, forks, recorded.sequence(), now);
         }
         return recorded;
     }
 
-    private void detectConflicts(int id, long seq, Instant now) {
-        int n = views.length;
-        int left = ForkTopology.leftNeighbour(id, n);
-        int right = ForkTopology.rightNeighbour(id, n);
-        if (views[left].state() == PhilosopherState.EATING) {
-            conflicts.add(new Conflict(seq, id, left, ForkTopology.leftFork(id, n), now));
+    /** Fourchettes annoncées par le philosophe, ou disposition classique F_i / F_{i+1} à défaut. */
+    private List<Integer> forksOf(PhilosopherEvent event) {
+        if (!event.forks().isEmpty()) {
+            return event.forks();
         }
-        if (right != left && views[right].state() == PhilosopherState.EATING) {
-            conflicts.add(new Conflict(seq, id, right, ForkTopology.rightFork(id, n), now));
+        int id = event.philosopherId();
+        return List.of(ForkTopology.leftFork(id, views.length), ForkTopology.rightFork(id, views.length));
+    }
+
+    /** Conflit = un autre philosophe mange déjà avec une des fourchettes que {@code id} vient de prendre. */
+    private void detectConflicts(int id, List<Integer> forks, long seq, Instant now) {
+        for (PhilosopherView other : views) {
+            if (other.id() == id || other.state() != PhilosopherState.EATING) {
+                continue;
+            }
+            for (Integer fork : forks) {
+                if (other.forks().contains(fork)) {
+                    conflicts.add(new Conflict(seq, id, other.id(), fork, now));
+                }
+            }
         }
     }
 
@@ -120,7 +137,7 @@ public class EventStore {
         staleEvents = 0;
         views = new PhilosopherView[n];
         for (int i = 0; i < n; i++) {
-            views[i] = new PhilosopherView(i, PhilosopherState.UNKNOWN, 0, 0, null);
+            views[i] = new PhilosopherView(i, PhilosopherState.UNKNOWN, 0, 0, null, List.of());
         }
     }
 }

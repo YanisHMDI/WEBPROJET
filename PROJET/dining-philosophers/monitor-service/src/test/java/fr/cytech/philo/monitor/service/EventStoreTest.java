@@ -76,6 +76,36 @@ class EventStoreTest {
     }
 
     @Test
+    void announcedForksAreUsedInsteadOfTheRoundTable() {
+        // partie 3.3 : P0 et P3 ne sont pas voisins, mais partagent F2
+        store.record(PhilosopherEvent.of(0, EventType.EATING, 1, List.of(0, 2)));
+        store.record(PhilosopherEvent.of(3, EventType.EATING, 1, List.of(3, 2)));
+
+        var conflicts = store.snapshot().conflicts();
+        assertThat(conflicts).hasSize(1);
+        assertThat(conflicts.get(0).other()).isZero();
+        assertThat(conflicts.get(0).sharedFork()).isEqualTo(2);
+    }
+
+    @Test
+    void neighboursWithDisjointAnnouncedForksMayEatTogether() {
+        store.record(PhilosopherEvent.of(0, EventType.EATING, 1, List.of(0, 3)));
+        store.record(PhilosopherEvent.of(1, EventType.EATING, 1, List.of(1, 2)));
+
+        assertThat(store.snapshot().conflicts()).isEmpty();
+        assertThat(store.snapshot().philosophers().get(1).forks()).containsExactly(1, 2);
+    }
+
+    @Test
+    void forksAreForgottenWhenThePhilosopherIsDone() {
+        store.record(PhilosopherEvent.of(0, EventType.EATING, 1, List.of(0, 2)));
+        store.record(PhilosopherEvent.of(0, EventType.DONE, 2));
+        store.record(PhilosopherEvent.of(3, EventType.EATING, 1, List.of(3, 2)));
+
+        assertThat(store.snapshot().conflicts()).isEmpty();
+    }
+
+    @Test
     void unknownPhilosopherIsRejected() {
         assertThatThrownBy(() -> store.record(PhilosopherEvent.of(9, EventType.HUNGRY, 1)))
                 .isInstanceOf(IllegalArgumentException.class);

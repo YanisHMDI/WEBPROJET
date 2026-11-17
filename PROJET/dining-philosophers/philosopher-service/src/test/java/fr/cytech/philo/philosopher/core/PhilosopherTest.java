@@ -16,7 +16,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
@@ -41,15 +41,16 @@ class PhilosopherTest {
     }
 
     @Test
-    void oneCycleEmitsHungryEatingDoneInOrder() throws Exception {
+    void oneCycleEmitsHungryEatingDoneThenReleases() throws Exception {
         philosopher.cycle();
 
         InOrder order = inOrder(reporter, strategy);
-        order.verify(reporter).report(any());          // HUNGRY
+        order.verify(reporter).report(argThat(e -> e.type() == EventType.HUNGRY));
         order.verify(strategy).acquireForks();
-        order.verify(reporter).report(any());          // EATING
+        order.verify(reporter).report(argThat(e -> e.type() == EventType.EATING));
+        // DONE part AVANT la restitution : sinon le moniteur peut voir un faux conflit
+        order.verify(reporter).report(argThat(e -> e.type() == EventType.DONE));
         order.verify(strategy).releaseForks();
-        order.verify(reporter).report(any());          // DONE
 
         ArgumentCaptor<PhilosopherEvent> events = ArgumentCaptor.forClass(PhilosopherEvent.class);
         verify(reporter, times(3)).report(events.capture());
@@ -75,7 +76,9 @@ class PhilosopherTest {
         Philosopher p = new Philosopher(0, strategy, reporter, new LamportClock(), FAST, interruptWhileEating);
 
         assertThatThrownBy(p::cycle).isInstanceOf(InterruptedException.class);
-        verify(strategy).releaseForks();
+        InOrder order = inOrder(reporter, strategy);
+        order.verify(reporter).report(argThat(e -> e.type() == EventType.DONE)); // le moniteur est prévenu…
+        order.verify(strategy).releaseForks();                                  // …avant la restitution
         assertThat(p.meals()).isZero();
     }
 
