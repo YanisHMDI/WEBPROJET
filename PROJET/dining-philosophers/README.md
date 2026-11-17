@@ -108,7 +108,7 @@ est une implémentation de cette interface, choisie au démarrage par `philo.mod
 
 Seuls les fichiers essentiels sont gardés : 4 modules Maven, un par service, plus le code partagé.
 
-En Java, le code d'un module se trouve toujours dans `src/main/java/fr/cytech/philo/<module>/`. Le schéma
+En Java, le code d'un module se trouve toujours dans `src/main/java/fr/cytech/hamoudilitim/philo/<module>/`. Le schéma
 ci-dessous montre directement ce qu'il y a au fond de ce dossier. Les tests sont rangés de la même façon dans
 `src/test/java/`.
 

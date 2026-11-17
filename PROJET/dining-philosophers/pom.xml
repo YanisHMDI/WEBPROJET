@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>fr.cytech.philo</groupId>
+    <groupId>fr.cytech.hamoudilitim.philo</groupId>
     <artifactId>dining-philosophers</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -34,7 +34,7 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>fr.cytech.philo</groupId>
+                <groupId>fr.cytech.hamoudilitim.philo</groupId>
                 <artifactId>common</artifactId>
                 <version>${project.version}</version>
             </dependency>
