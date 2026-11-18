@@ -27,6 +27,7 @@
     <properties>
         <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <curator.version>5.7.1</curator.version>
         <!-- Mockito (Byte Buddy) ne reconnait pas encore les JDK récents (ex. 27) : on autorise le mode expérimental pour les tests -->
         <argLine>-Dnet.bytebuddy.experimental=true</argLine>
     </properties>

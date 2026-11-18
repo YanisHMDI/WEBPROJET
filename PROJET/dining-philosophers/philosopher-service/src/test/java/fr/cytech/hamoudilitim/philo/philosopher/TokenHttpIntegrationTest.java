@@ -5,7 +5,7 @@ import com.sun.net.httpserver.HttpServer;
 import fr.cytech.hamoudilitim.philo.common.EventType;
 import fr.cytech.hamoudilitim.philo.common.PhilosopherEvent;
 import fr.cytech.hamoudilitim.philo.philosopher.token.TokenNode;
-import fr.cytech.hamoudilitim.philo.philosopher.token.TokenTransport.PeerDirectory;
+import fr.cytech.hamoudilitim.philo.philosopher.PeerDirectory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

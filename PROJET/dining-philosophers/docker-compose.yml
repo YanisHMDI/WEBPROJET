@@ -1,9 +1,9 @@
 # Lancement :  MODE=PAIR_SUPERVISOR PAIR_MODE=LOCKED docker compose up --build
-#   MODE       : SPOILED (partie 1) | NAIVE_SUPERVISOR (partie 2) | PAIR_SUPERVISOR (3.1 / 3.2) | TOKEN (3.3)
+#   MODE       : SPOILED (partie 1) | NAIVE_SUPERVISOR (partie 2) | PAIR_SUPERVISOR (3.1 / 3.2) | TOKEN (3.3) | ZOOKEEPER (3.4)
 #   PAIR_MODE  : UNSAFE (3.1) | LOCKED (3.2)
 #   RACE_WINDOW: pause entre "vérifier" et "réserver" côté superviseur (ex : 20ms) pour voir les bugs
 #   DETECT_CONFLICTS : mettre false en partie 1 (les voisins ont le droit de manger ensemble)
-#   ASSIGNMENT : TOKEN uniquement — RANDOM (F_i + une fourchette quelconque) | NEIGHBOURS (F_i, F_i+1)
+#   ASSIGNMENT : TOKEN et ZOOKEEPER — RANDOM (F_i + une fourchette quelconque) | NEIGHBOURS (F_i, F_i+1)
 #   DROP_RATE / MAX_DELAY : TOKEN uniquement — injection de pannes réseau (ex : 0.2 et 50ms)
 # Tableau de bord : http://localhost:8080
 
@@ -13,7 +13,7 @@ x-philosopher: &philosopher
     args:
       MODULE: philosopher-service
   image: philo/philosopher-service
-  depends_on: [monitor, supervisor]
+  depends_on: [monitor, supervisor, zookeeper]
   restart: unless-stopped
 
 x-philo-env: &philo-env
@@ -21,12 +21,18 @@ x-philo-env: &philo-env
   PHILO_MODE: ${MODE:-SPOILED}
   PHILO_MONITOR_URL: http://monitor:8080
   PHILO_SUPERVISOR_URL: http://supervisor:8081
-  PHILO_TOKEN_PEERS: http://philo-0:8090,http://philo-1:8090,http://philo-2:8090,http://philo-3:8090,http://philo-4:8090
-  PHILO_TOKEN_ASSIGNMENT: ${ASSIGNMENT:-RANDOM}
+  PHILO_PEERS: http://philo-0:8090,http://philo-1:8090,http://philo-2:8090,http://philo-3:8090,http://philo-4:8090
+  PHILO_ASSIGNMENT: ${ASSIGNMENT:-RANDOM}
   PHILO_TOKEN_DROP_RATE: ${DROP_RATE:-0}
   PHILO_TOKEN_MAX_DELAY: ${MAX_DELAY:-0ms}
+  PHILO_ZOOKEEPER_CONNECT: zookeeper:2181
 
 services:
+  # partie 3.4 : coordination distribuée (utilisé seulement en MODE=ZOOKEEPER)
+  zookeeper:
+    image: zookeeper:3.9
+    ports: ["2181:2181"]
+
   monitor:
     build:
       context: .

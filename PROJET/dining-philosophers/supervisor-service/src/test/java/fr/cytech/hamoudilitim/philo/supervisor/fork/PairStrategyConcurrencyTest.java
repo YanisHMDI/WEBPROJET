@@ -128,4 +128,20 @@ class PairStrategyConcurrencyTest {
         locked.release(2);                              // P2 (F2, F3) tente de libérer
         assertThat(table.ownerOf(2)).isEqualTo(1);      // F2 reste à P1
     }
+
+    @Test
+    @DisplayName("Partie 4 : réponse perdue — redemander ses fourchettes renvoie « oui » au lieu de les bloquer")
+    void lockedAcquireIsIdempotentWhenTheResponseWasLost() {
+        ForkTable table = new ForkTable(N);
+        PairStrategy locked = new LockedPairStrategy(table, RaceWindow.NONE);
+
+        assertThat(locked.tryAcquire(1)).isTrue();      // accordé… mais la réponse HTTP se perd
+        assertThat(locked.tryAcquire(1)).as("le philosophe redemande").isTrue();
+        assertThat(locked.tryAcquire(2)).as("un voisin reste refusé").isFalse();
+        assertThat(table.violations()).isZero();
+
+        locked.release(1);                              // il mange puis rend : rien ne reste bloqué
+        assertThat(table.ownerOf(1)).isNull();
+        assertThat(table.ownerOf(2)).isNull();
+    }
 }

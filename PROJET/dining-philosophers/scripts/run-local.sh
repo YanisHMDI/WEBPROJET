@@ -8,6 +8,8 @@
 #   ./scripts/run-local.sh TOKEN                      # partie 3.3 (PAIR_MODE ignoré)
 #   DROP_RATE=0.2 MAX_DELAY=50ms ./scripts/run-local.sh TOKEN   # 3.3 avec pannes réseau simulées
 #   ASSIGNMENT=NEIGHBOURS ./scripts/run-local.sh TOKEN          # 3.3 avec la table ronde classique
+#   ./scripts/run-local.sh ZOOKEEPER                  # 3.4 (ZooKeeper doit tourner sur localhost:2181,
+#                                                     #      ex : docker run -d -p 2181:2181 zookeeper:3.9)
 set -euo pipefail
 
 MODE="${1:-SPOILED}"
@@ -43,7 +45,7 @@ for ((i = 0; i < N; i++)); do PEERS+="${PEERS:+,}http://localhost:$((8090 + i))"
 for ((i = 0; i < N; i++)); do
   start "philo-$i" philosopher-service/target/philosopher-service.jar \
     --server.port=$((8090 + i)) --philo.id="$i" --philo.count="$N" --philo.mode="$MODE" \
-    --philo.token.peers="$PEERS" --philo.token.assignment="${ASSIGNMENT:-RANDOM}" \
+    --philo.peers="$PEERS" --philo.assignment="${ASSIGNMENT:-RANDOM}" --philo.zookeeper.connect="${ZOOKEEPER:-localhost:2181}" \
     --philo.token.drop-rate="${DROP_RATE:-0}" --philo.token.max-delay="${MAX_DELAY:-0ms}"
 done
 

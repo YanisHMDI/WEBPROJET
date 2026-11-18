@@ -1,6 +1,6 @@
 package fr.cytech.hamoudilitim.philo.philosopher.token;
 
-import fr.cytech.hamoudilitim.philo.philosopher.token.TokenStrategy.ForkAssignment;
+import fr.cytech.hamoudilitim.philo.philosopher.core.ForkAssignment;
 import org.junit.jupiter.api.Test;
 
 import java.util.HashSet;

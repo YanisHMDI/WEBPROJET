@@ -13,7 +13,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * <ul>
  *   <li>exclusion mutuelle : une fourchette n'a jamais deux propriétaires ;</li>
  *   <li>pas d'interblocage : on n'attend jamais en détenant une fourchette (tout ou rien) ;</li>
- *   <li>libération sûre : seules les fourchettes réellement détenues sont libérées.</li>
+ *   <li>libération sûre : seules les fourchettes réellement détenues sont libérées ;</li>
+ *   <li>idempotence : redemander des fourchettes déjà obtenues renvoie « oui ». Si la réponse HTTP se perd,
+ *       le philosophe redemande et récupère ses fourchettes au lieu de les laisser bloquées (partie 4).</li>
  * </ul>
  * Limite : la famine reste possible (deux voisins peuvent "doubler" indéfiniment le philosophe
  * situé entre eux). Le verrou est équitable vis-à-vis des threads, pas vis-à-vis des philosophes.
@@ -38,6 +40,11 @@ public class LockedPairStrategy implements PairStrategy {
 
         lock.lock();
         try {
+            if (owns(left, philosopher) && owns(right, philosopher)) {
+                // demande répétée : la réponse précédente s'est perdue côté philosophe. Répondre « oui »
+                // (idempotence) évite que les fourchettes restent attribuées à quelqu'un qui croit ne pas les avoir.
+                return true;
+            }
             if (!table.isFree(left) || !table.isFree(right)) {
                 return false;
             }
@@ -62,6 +69,11 @@ public class LockedPairStrategy implements PairStrategy {
         } finally {
             lock.unlock();
         }
+    }
+
+    private boolean owns(int fork, int philosopher) {
+        Integer owner = table.ownerOf(fork);
+        return owner != null && owner == philosopher;
     }
 
     private void freeIfOwned(int fork, int philosopher) {

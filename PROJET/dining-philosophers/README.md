@@ -13,7 +13,7 @@ fourchette utilisée par deux philosophes à la fois.
 3. [Démarrage rapide](#3-démarrage-rapide)
 4. [Architecture](#4-architecture)
 5. [Arborescence du projet](#5-arborescence-du-projet)
-6. [Les parties réalisées](#6-les-parties-réalisées), de la [partie 1](#partie-1--philosophes-gâtés) à la [partie 3.3](#partie-33--protocole-distribué-par-jetons)
+6. [Les parties réalisées](#6-les-parties-réalisées), de la [partie 1](#partie-1--philosophes-gâtés) à la [partie 5](#partie-5--master-worker-sur-un-graphe)
 7. [Tests](#7-tests)
 8. [API HTTP](#8-api-http)
 9. [Configuration](#9-configuration)
@@ -30,13 +30,13 @@ fourchette utilisée par deux philosophes à la fois.
 | 3.1 Section critique sans verrou | ✅ fait | `PAIR_SUPERVISOR` + `UNSAFE` |
 | 3.2 Section critique avec verrou | ✅ fait | `PAIR_SUPERVISOR` + `LOCKED` |
 | 3.3 Protocole distribué par jetons | ✅ fait | `TOKEN` |
-| 3.4 Comparaison avec ZooKeeper | ⏳ à faire | — |
-| 4. Tests (unitaires, intégration, concurrence, résilience) | 🟡 fait pour les parties 1 à 3.3 | `mvn verify` |
-| 5. Master–Worker sur un graphe | ⏳ à faire | — |
+| 3.4 Comparaison avec ZooKeeper | ✅ fait | `ZOOKEEPER` |
+| 4. Tests (unitaires, intégration, concurrence, résilience, analyse) | ✅ fait | `mvn verify` |
+| 5. Master–Worker sur un graphe (degrés, accessibilité, pannes, performances) | ✅ fait | `/api/master/...` |
 | 6. DevOps (Docker ✅, Kafka, Kubernetes, CI/CD, supervision) | 🟡 Docker seulement | `docker compose up` |
 | 7. Livrables (code ✅, tests ✅, rapport) | 🟡 rapport à rédiger | — |
 
-**77 tests, tous verts.**
+**105 tests, tous verts.**
 
 ---
 
@@ -83,15 +83,45 @@ Les philosophes s'organisent seuls, en s'envoyant des messages HTTP :
 Résultat : **0 conflit**, même avec 20 % de messages perdus. Le détail et les justifications sont dans
 [docs/protocole-jetons.md](docs/protocole-jetons.md).
 
-**Étape 7 — Tout tester (partie 4).**
-77 tests, lancés par `mvn verify` :
+**Étape 7 — Même problème, avec ZooKeeper (partie 3.4).**
+Au lieu de notre protocole, chaque fourchette devient un **verrou distribué** géré par ZooKeeper, via la
+bibliothèque Curator. Pour éviter l'interblocage, on prend toujours les deux verrous dans le même ordre : plus
+petit numéro d'abord. Si un philosophe meurt, ZooKeeper libère ses verrous tout seul.
+
+On a mesuré les deux solutions dans les mêmes conditions. Les **jetons sont environ 5 fois plus rapides et
+plus équitables**, mais **ZooKeeper résiste à la panne d'un philosophe**, ce que les jetons ne savent pas faire.
+Le détail est dans [docs/comparaison-zookeeper.md](docs/comparaison-zookeeper.md).
+
+**Étape 8 — Tout tester, y compris les pannes (partie 4).**
+105 tests, lancés par `mvn verify` :
 - **unitaires** : une pièce testée seule, les autres étant simulées avec Mockito ;
+- **intégration** : de vrais services qui se parlent en HTTP, et un vrai serveur ZooKeeper ;
 - **concurrence** : plusieurs philosophes à la fois, un contrôleur vérifie à chaque repas qu'aucune fourchette
   n'est partagée ;
-- **pannes** : messages perdus, retardés ou reçus deux fois ;
-- **intégration** : 3 vrais services qui se parlent en HTTP.
+- **pannes** : messages perdus, retardés ou doublés, crash d'un philosophe, réponse perdue, Worker en panne.
 
-**Étape 8 — Lancer et organiser.**
+Les tests de pannes ont mené à trois corrections :
+- un affamé qui attend trop longtemps **abandonne** sa demande puis réessaie, ce qui limite l'effet d'un crash ;
+- le superviseur répond « oui » à une demande répétée, pour le cas où la première réponse s'est perdue ;
+- un philosophe arrêté pendant son repas rend bien ses verrous ZooKeeper.
+
+Ce que les tests prouvent, et ce qu'ils ne prouvent pas, est expliqué dans
+[docs/strategie-de-tests.md](docs/strategie-de-tests.md).
+
+**Étape 9 — Calcul distribué sur un graphe (partie 5).**
+Un philosophe joue le **Master**, les autres les **Workers**. Le Master découpe le graphe : le nœud v va au
+Worker v mod P. Il envoie une tâche à chaque Worker et rassemble les résultats. Deux calculs sont proposés :
+- le **degré** de chaque nœud. Chaque Worker ne compte que ses propres nœuds, donc rien n'est compté deux fois ;
+- l'**accessibilité** s → t, par un parcours en largeur niveau par niveau.
+
+Si un Worker tombe, sa tâche est relancée ailleurs. S'il est lent, une copie part sur un autre Worker et le
+premier résultat gagne. Le résultat reste exact, car chaque tâche donne toujours le même résultat.
+
+Mesuré : sur ces calculs très légers, **le distribué est bien plus lent que le séquentiel**, car le transfert
+des données coûte plus cher que le calcul. Le détail et l'analyse sont dans
+[docs/master-worker.md](docs/master-worker.md).
+
+**Étape 10 — Lancer et organiser.**
 Un script (`run-local.sh`) ou Docker Compose lance tout en une commande. Le code est rangé par service, puis
 par partie du sujet, dans le package `fr.cytech.hamoudilitim.philo`.
 
@@ -102,7 +132,7 @@ par partie du sujet, dans le package `fr.cytech.hamoudilitim.philo`.
 Prérequis : JDK 17 ou plus récent, et Maven 3.9 ou plus récent. Docker est optionnel.
 
 ```bash
-mvn verify                       # compile les 4 modules et lance les 77 tests
+mvn verify                       # compile les 4 modules et lance les 105 tests
 
 ./scripts/run-local.sh TOKEN     # lance le moniteur, le superviseur et 5 philosophes (ici la partie 3.3)
 open http://localhost:8080       # tableau de bord
@@ -132,14 +162,15 @@ MODE=TOKEN docker compose up --build
                      │   philosopher-service × N  │ :8090, 8091…   boucle Penser → Faim → Manger
                      │                            │
                      │   P0 ◄──────────────► P1   │  mode TOKEN (3.3) : demandes et jetons
-                     │    ▲  messages HTTP    ▲   │  échangés directement entre philosophes,
-                     │    └──────► P2 ◄───────┘   │  sans superviseur
-                     └─────────────┬──────────────┘
-      modes NAIVE_SUPERVISOR       │  demandes de fourchettes
-      et PAIR_SUPERVISOR (2, 3.x)  ▼
-                        ┌──────────────────────┐
-                        │  supervisor-service  │ :8081   état des fourchettes
-                        └──────────────────────┘
+                     │    ▲  messages HTTP    ▲   │  échangés directement entre philosophes.
+                     │    └──────► P2 ◄───────┘   │  Partie 5 : P0 Master, les autres Workers
+                     └──────┬──────────────┬──────┘
+      modes NAIVE_SUPERVISOR│              │ mode ZOOKEEPER (3.4) :
+      et PAIR_SUPERVISOR    ▼              ▼ un verrou par fourchette
+              ┌──────────────────────┐  ┌──────────────────┐
+              │  supervisor-service  │  │    ZooKeeper     │ :2181
+              │  :8081  fourchettes  │  │  (image Docker)  │
+              └──────────────────────┘  └──────────────────┘
 ```
 
 | Module | Rôle |
@@ -147,7 +178,7 @@ MODE=TOKEN docker compose up --build
 | `common` | Code partagé : horloge de Lamport, format des événements, disposition des fourchettes autour de la table |
 | `monitor-service` | Reçoit les événements de tous les philosophes, reconstruit leur état, détecte les conflits et sert le tableau de bord |
 | `supervisor-service` | Gère l'état des fourchettes pour les parties 2, 3.1 et 3.2 |
-| `philosopher-service` | Un processus = un philosophe. Contient la boucle de vie et toutes les façons d'obtenir les fourchettes |
+| `philosopher-service` | Un processus = un philosophe. Contient la boucle de vie, toutes les façons d'obtenir les fourchettes, et les rôles Master et Worker de la partie 5 |
 
 **Choix d'architecture central.** La boucle du philosophe (`Philosopher`) ne change jamais. Seule change la
 façon d'obtenir et de rendre les fourchettes, définie par l'interface `DiningStrategy`. Chaque partie du sujet
@@ -159,6 +190,9 @@ est une implémentation de cette interface, choisie au démarrage par `philo.mod
 | `NAIVE_SUPERVISOR` | `NaiveSupervisorStrategy` | 2 |
 | `PAIR_SUPERVISOR` | `PairSupervisorStrategy` | 3.1 / 3.2 |
 | `TOKEN` | `TokenStrategy` + `TokenNode` | 3.3 |
+| `ZOOKEEPER` | `ZooKeeperStrategy` | 3.4 |
+
+Le calcul Master–Worker de la partie 5 est disponible dans tous les modes.
 
 ---
 
@@ -173,8 +207,12 @@ ci-dessous montre directement ce qu'il y a au fond de ce dossier. Les tests sont
 ```
 dining-philosophers/
 ├── pom.xml  Dockerfile  docker-compose.yml  README.md
-├── docs/protocole-jetons.md        conception et justification de la partie 3.3
-├── scripts/                        run-local.sh, stop-local.sh
+├── docs/
+│   ├── protocole-jetons.md         partie 3.3 : conception et justification du protocole
+│   ├── comparaison-zookeeper.md    partie 3.4 : mesures et comparaison
+│   ├── strategie-de-tests.md       partie 4 : les tests et leurs limites
+│   └── master-worker.md            partie 5 : conception, mesures, analyse
+├── scripts/                        run-local.sh, stop-local.sh, bench-graph.sh (mesures de la partie 5)
 │
 ├── common/                         code partagé
 │   ├── LamportClock.java           horloge logique
@@ -202,9 +240,11 @@ dining-philosophers/
 │
 └── philosopher-service/            un philosophe (:8090 et suivants)
     ├── PhilosopherApplication.java, PhilosopherConfig.java, PhilosopherProperties.java, PhilosopherRunner.java
+    ├── PeerDirectory.java          adresses des autres philosophes
     ├── core/                       la boucle du philosophe, commune à toutes les parties
     │   ├── Philosopher.java        Penser → Faim → Manger
     │   ├── DiningStrategy.java     comment obtenir et rendre les fourchettes (une version par partie)
+    │   ├── ForkAssignment.java     règle d'attribution des deux fourchettes (3.3 et 3.4)
     │   ├── EventReporter.java, HttpEventReporter.java   envoi des événements au moniteur
     │   └── Sleeper.java
     ├── strategy/                   parties 1, 2, 3.1, 3.2
@@ -214,13 +254,22 @@ dining-philosophers/
     │   └── SupervisorClient.java         appels HTTP au superviseur
     ├── token/                      partie 3.3 : protocole à jetons
     │   ├── TokenNode.java          le cœur du protocole
-    │   ├── TokenStrategy.java      branche le protocole sur la boucle, et règle d'attribution des fourchettes
+    │   ├── TokenStrategy.java      branche le protocole sur la boucle, abandon si attente trop longue
     │   ├── TokenMessages.java      les 3 messages : demande, jeton, libération
-    │   ├── TokenTransport.java     envoi en HTTP, injection de pannes, adresses des pairs
+    │   ├── TokenTransport.java     envoi en HTTP, injection de pannes
     │   └── Dispatcher.java         envois en arrière-plan, un fil par destinataire
+    ├── zookeeper/                  partie 3.4
+    │   └── ZooKeeperStrategy.java  un verrou ZooKeeper par fourchette
+    ├── graph/                      partie 5 : Master–Worker
+    │   ├── Graph.java              le graphe, son générateur, les calculs séquentiels de référence
+    │   ├── GraphMaster.java        découpe, distribue, relance en cas de panne, fusionne
+    │   ├── GraphWorker.java        calcule sur sa partition
+    │   ├── GraphMessages.java      messages entre Master et Workers
+    │   └── WorkerClient.java       appels HTTP vers les Workers
     └── web/
         ├── PhilosopherController.java   /api/status, /api/start, /api/stop
-        └── TokenController.java         /api/token/* (partie 3.3)
+        ├── TokenController.java         /api/token/* (partie 3.3)
+        └── GraphController.java         /api/master/*, /api/worker/* (partie 5)
 ```
 
 ---
@@ -366,7 +415,7 @@ philosophes qui s'envoient un message au même moment s'attendraient mutuellemen
 
 **Limite.** Si un philosophe plante définitivement en tenant un jeton, ce jeton est perdu. Aucune règle n'est
 violée, mais ceux qui ont besoin de cette fourchette attendent indéfiniment. C'est le point de comparaison avec
-ZooKeeper (partie 3.4).
+ZooKeeper (partie 3.4). La partie 4 mesure cette limite et l'atténue, voir plus bas.
 
 **Résultats mesurés.**
 - Avec le vrai système de 5 services et 20 % de messages perdus : 0 conflit, chaque jeton est à exactement un
@@ -380,14 +429,86 @@ ASSIGNMENT=NEIGHBOURS ./scripts/run-local.sh TOKEN          # table ronde classi
 curl localhost:8090/api/token/state                         # jetons, file d'attente, statistiques de P0
 ```
 
+### Partie 3.4 — Comparaison avec ZooKeeper
+
+**Ce que demande le sujet.** Mettre en place une seconde solution, fondée sur un verrou distribué (ZooKeeper
+ou un autre outil de coordination), puis la comparer au protocole à jetons.
+
+**Ce qui est fait.**
+- `ZooKeeperStrategy` : chaque fourchette est un verrou Curator `InterProcessMutex`. Prendre le verrou, c'est
+  créer un nœud **éphémère et séquentiel** dans ZooKeeper. Le plus petit numéro tient le verrou, les autres
+  attendent leur tour, dans l'ordre d'arrivée.
+- **Pas d'interblocage** : les deux verrous sont pris dans un ordre global, plus petit indice d'abord.
+- **Panne** : les nœuds éphémères disparaissent à l'expiration de la session du philosophe, donc ses
+  fourchettes sont libérées automatiquement.
+- **Comparaison chiffrée**, pour N = 3, 5 et 9 (`TokenVsZooKeeperComparisonTest`). Les jetons sont environ 5 fois
+  plus rapides, plus équitables, et sans infrastructure. ZooKeeper envoie un nombre de messages constant et
+  récupère la panne d'un philosophe. Les tableaux et l'analyse sont dans
+  [docs/comparaison-zookeeper.md](docs/comparaison-zookeeper.md).
+
+```bash
+docker run -d -p 2181:2181 zookeeper:3.9 && ./scripts/run-local.sh ZOOKEEPER
+MODE=ZOOKEEPER docker compose up --build      # ou tout en Docker, ZooKeeper compris
+```
+
+### Partie 4 — Tests et analyse
+
+**Ce que demande le sujet.** Écrire des tests unitaires, d'intégration, de concurrence et de résilience, puis
+distinguer ce qu'ils prouvent de ce qui demanderait une vérification formelle.
+
+**Ce qui est fait.** Les 105 tests sont rangés selon ces 5 catégories dans
+[docs/strategie-de-tests.md](docs/strategie-de-tests.md). Les tests de pannes ajoutés dans cette partie, et ce
+qu'ils ont permis de corriger :
+
+| Panne | Constat | Correction |
+|---|---|---|
+| Crash d'un philosophe qui tient des jetons (`TokenCrashTest`) | sûreté conservée, mais **tout le système se bloque** en cascade : un affamé bloqué garde ses jetons, qui bloquent d'autres affamés | `philo.token.give-up-after` : après 10 s d'attente, l'affamé abandonne, rend ses jetons et redemande. Seuls ceux dont la propre fourchette est perdue restent bloqués |
+| Réponse perdue côté superviseur | la fourchette restait attribuée à un philosophe qui croyait ne pas l'avoir | le superviseur verrouillé répond « oui » à une demande répétée (idempotence) |
+| Philosophe arrêté pendant un repas, sous ZooKeeper | ses verrous n'étaient pas rendus, à cause du thread interrompu | `releaseForks` efface le drapeau d'interruption le temps de rendre les verrous |
+| Crash sous ZooKeeper | ses verrous sont libérés à l'expiration de sa session | rien à corriger |
+
+**Ce que les tests ne prouvent pas.** Ils explorent beaucoup d'exécutions, mais pas toutes. Une vérification
+exhaustive demanderait un modèle **TLA+** vérifié par TLC, pour de petits N.
+
+### Partie 5 — Master–Worker sur un graphe
+
+**Ce que demande le sujet.** Un philosophe Master répartit un grand graphe entre des philosophes Workers pour
+calculer le degré de chaque nœud, puis l'accessibilité s → t. Il faut gérer un Worker en panne ou lent, et
+mesurer les performances.
+
+**Ce qui est fait.** Le détail est dans [docs/master-worker.md](docs/master-worker.md).
+- **Partitionnement** : le nœud v va à la partition v mod P. Chaque Worker reçoit les arcs qui touchent ses
+  nœuds, et ne compte que ses propres extrémités : **pas de double comptage**. Le Master vérifie que la somme
+  des degrés vaut 2|E| et compare au calcul séquentiel.
+- **Accessibilité** : parcours en largeur par niveaux. Chaque Worker garde les successeurs de ses nœuds, et
+  le Master fusionne les frontières jusqu'à atteindre t, ou jusqu'à ce que la frontière soit vide.
+- **Pannes** : une tâche échouée est relancée sur un autre Worker. Une tâche trop lente est copiée sur un
+  autre Worker, et le premier résultat gagne. Une partition perdue en plein parcours est rechargée ailleurs.
+  C'est vérifié en tests, et sur le vrai système en tuant un Worker avec `kill -9`.
+- **Performances** : avec 2 millions d'arcs, le calcul des degrés prend 350 ms avec 1 Worker et 240 ms avec 4,
+  contre 4 ms en séquentiel. Le coût de communication domine (loi d'Amdahl).
+
+```bash
+./scripts/run-local.sh SPOILED
+curl -X POST localhost:8090/api/master/degrees -H 'Content-Type: application/json' \
+     -d '{"nodes":100000,"edges":500000,"seed":1,"workers":4}'
+curl -X POST localhost:8090/api/master/reachability -H 'Content-Type: application/json' \
+     -d '{"nodes":100000,"edges":500000,"seed":1,"source":0,"target":99999}'
+./scripts/bench-graph.sh                      # toutes les mesures de performance
+```
+
 ---
 
 ## 7. Tests
 
 ```bash
-mvn verify                                                  # les 77 tests
+mvn verify                                                  # les 105 tests
 mvn test -pl philosopher-service -am -Dtest='Token*'        # seulement ceux de la partie 3.3
+caffeinate -i mvn verify                                    # macOS : empêche la mise en veille pendant les tests
 ```
+
+Le classement des tests selon les 5 points de la partie 4 du sujet est dans
+[docs/strategie-de-tests.md](docs/strategie-de-tests.md).
 
 | Module | Classe de test | Nb | Type | Ce qu'elle vérifie |
 |---|---|---|---|---|
@@ -396,7 +517,7 @@ mvn test -pl philosopher-service -am -Dtest='Token*'        # seulement ceux de 
 | monitor | `EventStoreTest` | 10 | unitaire | cycle d'états, événements hors ordre, tri de Lamport, conflits entre voisins **et** sur des fourchettes quelconques |
 | monitor | `EventControllerTest` | 2 | web (MockMvc) | contrat HTTP du moniteur |
 | supervisor | `NaiveForkServiceTest` | 4 | unitaire | les 4 failles de la partie 2 |
-| supervisor | `PairStrategyConcurrencyTest` | 6 | concurrence | 3.1 : fourchette partagée ; 3.2 : un seul servi, test de charge |
+| supervisor | `PairStrategyConcurrencyTest` | 7 | concurrence | 3.1 : fourchette partagée ; 3.2 : un seul servi, test de charge, demande répétée après une réponse perdue |
 | supervisor | `SupervisorApiTest` | 3 | web (MockMvc) | contrat HTTP du superviseur |
 | philosopher | `PhilosopherTest` | 4 | unitaire (Mockito) | ordre HUNGRY → EATING → DONE → restitution, horloge, interruption |
 | philosopher | `SupervisorStrategiesTest` | 4 | unitaire (Mockito) | gauche puis droite, retentatives |
@@ -407,7 +528,13 @@ mvn test -pl philosopher-service -am -Dtest='Token*'        # seulement ceux de 
 | philosopher | `ForkAssignmentTest` | 2 | unitaire | 3.3 : règles d'attribution |
 | philosopher | `TokenProtocolSimulationTest` | 4 | concurrence + résilience | 3.3 : 5 à 7 philosophes avec un contrôleur global ; 0 violation, tout le monde mange, équité, jetons conservés, y compris avec 20 % de pertes, des doublons et de la latence |
 | philosopher | `TokenHttpIntegrationTest` | 3 | intégration | 3.3 : 3 vrais services Spring Boot en HTTP ; 0 conflit, philosophe arrêté qui cède ses jetons |
-| | **Total** | **77** | | |
+| philosopher | `TokenCrashTest` | 2 | résilience | 4 : crash d'un détenteur de jetons, sans puis avec abandon |
+| philosopher | `ZooKeeperStrategyTest` | 4 | intégration + concurrence | 3.4 : vrai serveur ZooKeeper ; 0 violation, ordres opposés sans interblocage, verrous libérés après un crash ou un arrêt |
+| philosopher | `TokenVsZooKeeperComparisonTest` | 3 | mesure | 3.4 : les deux solutions pour N = 3, 5 et 9 |
+| philosopher | `GraphTest` | 4 | unitaire | 5 : graphe reproductible, somme des degrés = 2\|E\|, accessibilité séquentielle |
+| philosopher | `GraphMasterTest` | 11 | unitaire + résilience | 5 : résultats exacts pour 1 à 4 Workers ; Worker en panne, lent, ou qui tombe en plein parcours |
+| philosopher | `GraphHttpIntegrationTest` | 3 | intégration | 5 : Master et Workers en HTTP, y compris après l'arrêt d'un Worker |
+| | **Total** | **105** | | |
 
 ---
 
@@ -432,6 +559,10 @@ mvn test -pl philosopher-service -am -Dtest='Token*'        # seulement ceux de 
 | philosopher | POST | `/api/token/transfer` | 3.3 : jeton `{fork, seq, from, to, lamport, released}` |
 | philosopher | POST | `/api/token/release` | 3.3 : fin de demande `{requester, meal, lamport}` |
 | philosopher | GET | `/api/token/state` | 3.3 : jetons détenus, en transit, file d'attente, statistiques |
+| philosopher | POST | `/api/master/degrees` | 5 : `{nodes, edges, seed, workers?}` → degrés, temps, compteurs de relance |
+| philosopher | POST | `/api/master/reachability` | 5 : `{nodes, edges, seed, source, target, workers?}` → accessible ou non |
+| philosopher | POST | `/api/worker/degree`, `/api/worker/partition`, `/api/worker/expand` | 5 : tâches envoyées par le Master |
+| philosopher | DELETE | `/api/worker/jobs/{jobId}` | 5 : libère la mémoire d'un calcul |
 
 ---
 
@@ -447,11 +578,16 @@ Chaque propriété peut se passer en argument (`--philo.mode=TOKEN`) ou en varia
 | `philo.think-min/max`, `philo.eat-min/max` | 500ms / 2s | durées aléatoires de réflexion et de repas |
 | `philo.retry-delay`, `philo.http-timeout` | 100ms, 2s | nouvel essai si refus (2, 3.x), délai HTTP |
 | `philo.monitor-url`, `philo.supervisor-url` | localhost:8080 / 8081 | adresses des services |
-| `philo.token.peers` | — | 3.3 : adresses de tous les philosophes, dans l'ordre des identifiants |
-| `philo.token.assignment` | `RANDOM` | 3.3 : `RANDOM` ou `NEIGHBOURS` |
+| `philo.peers` | — | 3.3 et 5 : adresses de tous les philosophes, dans l'ordre des identifiants |
+| `philo.assignment` | `RANDOM` | 3.3 et 3.4 : `RANDOM` ou `NEIGHBOURS` |
 | `philo.token.retransmit-interval` | 1s | 3.3 : réémission d'une demande sans réponse |
 | `philo.token.retry-delay` | 200ms | 3.3 : réémission d'un jeton non acquitté |
+| `philo.token.give-up-after` | 10s | 4 : abandon d'une demande bloquée, puis nouvelle demande (0 = jamais) |
 | `philo.token.drop-rate`, `philo.token.max-delay` | 0, 0ms | 3.3 : injection de pannes (pertes, doublons, latence) |
+| `philo.zookeeper.connect` | `localhost:2181` | 3.4 : adresse du serveur ZooKeeper |
+| `philo.zookeeper.session-timeout` | 5s | 3.4 : délai après lequel un philosophe muet est déclaré mort, et ses verrous libérés |
+| `philo.graph.task-timeout` | 5s | 5 : délai avant de copier une tâche sur un autre Worker |
+| `philo.graph.worker-delay` | 0ms | 5 : simule un Worker lent |
 | `supervisor.pair-mode` | `LOCKED` | `UNSAFE` (3.1) ou `LOCKED` (3.2) |
 | `supervisor.race-window` | 0ms | pause entre « vérifier » et « réserver » |
 | `monitor.detect-neighbour-conflicts` | `true` | détection des conflits (`false` en partie 1) |
@@ -459,22 +595,6 @@ Chaque propriété peut se passer en argument (`--philo.mode=TOKEN`) ou en varia
 ---
 
 ## 10. Ce qu'il reste à faire
-
-### Partie 3.4 — ZooKeeper
-- [ ] Ajouter ZooKeeper au `docker-compose.yml`, avec la dépendance `curator-recipes`.
-- [ ] Mode `ZOOKEEPER` : un `InterProcessMutex` par fourchette, pris dans un ordre global, ou un `InterProcessMultiLock`.
-- [ ] Comparer avec la 3.3 : messages par repas, latence, équité, tolérance aux pannes (crash d'un détenteur), complexité.
-
-### Partie 4 — Tests à compléter
-- [ ] Crash définitif d'un détenteur de jeton : montrer que la sûreté tient mais pas la vivacité.
-- [ ] Résilience côté superviseur : si la réponse d'un `acquire` est perdue, la fourchette reste attribuée (voir `SupervisorClient`).
-
-### Partie 5 — Master–Worker sur un graphe
-- [ ] Rôle Master et endpoint Worker `POST /api/worker/degree`.
-- [ ] Partitionnement par nœud : chaque Worker reçoit les arêtes incidentes à ses nœuds, donc pas de double comptage.
-- [ ] Délai maximal et relance des tâches d'un Worker en panne ; résultats idempotents grâce à un identifiant de tâche.
-- [ ] Mesures en faisant varier le nombre de Workers et la taille du graphe ; loi d'Amdahl et coût réseau.
-- [ ] Accessibilité s → t en parallèle (parcours en largeur par niveaux).
 
 ### Partie 6 — DevOps
 - [x] Dockerfile et docker-compose.
