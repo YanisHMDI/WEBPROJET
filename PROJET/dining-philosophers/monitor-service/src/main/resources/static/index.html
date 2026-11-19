@@ -193,7 +193,29 @@ main { padding-top: 24px; padding-bottom: 56px; }
 .seat-halo { opacity: 0; transition: opacity .3s; }
 .seat.EATING .seat-halo { opacity: 1; animation: halo 2.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes halo { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: .2; transform: scale(1.12); } }
-.fork-link { stroke: var(--eating); stroke-width: 3.5; stroke-linecap: round; opacity: .6; }
+.fork-g { transition: transform .75s cubic-bezier(.22, .9, .25, 1); }
+.fork-g circle { fill: var(--surface); stroke: var(--wood-edge); stroke-width: 1.5; transition: fill .3s, stroke .3s; }
+.fork-g text { fill: var(--muted); font: 800 11px var(--mono); transition: fill .3s; }
+.fork-g[data-kind="eat"] circle { fill: var(--eating); stroke: var(--eating); }
+.fork-g[data-kind="eat"] text { fill: #fff; }
+.fork-g[data-kind="hold"] circle { fill: var(--accent-soft); stroke: var(--accent); }
+.fork-g[data-kind="hold"] text { fill: var(--accent); }
+.fork-g[data-kind="transit"] circle { fill: var(--hungry-soft); stroke: var(--hungry); stroke-dasharray: 3 3; }
+.fork-g[data-kind="transit"] text { fill: var(--hungry); }
+.seat-body { transition: fill .35s; }
+.legend .sep { width: 1px; height: 14px; background: var(--line-strong); }
+.fk { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font: 800 9px var(--mono); }
+.fk.eat { background: var(--eating); color: #fff; }
+.fk.hold { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.fk.free { background: var(--surface); color: var(--muted); box-shadow: inset 0 0 0 1.5px var(--wood-edge); }
+.feed { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; }
+.feed li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2);
+           font-size: 14px; animation: feed-in .35s ease-out; min-width: 0; }
+.feed li .avatar { width: 26px; height: 26px; font-size: 11px; flex: none; }
+.feed li .what { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feed li .when { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@keyframes feed-in { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+@media (max-width: 960px) { .feed { grid-template-columns: 1fr; } }
 .legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 18px; padding: 8px 20px 18px; font-size: 13px; color: var(--text-2); }
 .legend span { display: inline-flex; align-items: center; gap: 7px; }
 .legend i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent); }
@@ -434,13 +456,17 @@ footer { max-width: 1360px; margin: 0 auto; padding: 0 28px 28px; color: var(--m
 
         <div class="cols">
             <div class="card">
-                <div class="card-head"><h2>La table</h2><span class="hint">un trait vert relie chaque philosophe qui mange à ses fourchettes</span></div>
+                <div class="card-head"><h2>La table</h2><span class="hint" id="table-hint">les fourchettes glissent vers le philosophe qui les prend</span></div>
                 <div class="table-wrap"><svg id="table" viewBox="-20 -20 480 480" role="img" aria-label="Table des philosophes"></svg></div>
                 <div class="legend">
                     <span style="--c: var(--thinking)"><i></i>pense</span>
                     <span style="--c: var(--hungry)"><i></i>a faim</span>
                     <span style="--c: var(--eating)"><i></i>mange</span>
                     <span style="--c: var(--stopped)"><i></i>arrêté</span>
+                    <span class="sep"></span>
+                    <span><b class="fk eat">F</b>fourchette utilisée</span>
+                    <span id="legend-hold"><b class="fk hold">F</b>jeton détenu</span>
+                    <span><b class="fk free">F</b>libre</span>
                 </div>
             </div>
             <div class="stack">
@@ -458,6 +484,10 @@ footer { max-width: 1360px; margin: 0 auto; padding: 0 28px 28px; color: var(--m
                 </div>
             </div>
         </div>
+        <div class="card" style="margin-top:18px">
+            <div class="card-head"><h2>Fil d'activité</h2><span class="hint">les derniers événements reçus par le moniteur</span></div>
+            <div class="card-body"><ol class="feed" id="feed"></ol></div>
+        </div>
     </section>
 
     <!-- ================================================================ PHILOSOPHES -->
@@ -468,7 +498,7 @@ footer { max-width: 1360px; margin: 0 auto; padding: 0 28px 28px; color: var(--m
                 <div>
                     <h2>Simuler une panne</h2>
                     <p>« Arrêter » interrompt la boucle d'un philosophe : il rend ses fourchettes et cesse de manger, mais son service
-                        reste joignable — en mode TOKEN, il continue de céder ses jetons à ceux qui les demandent.</p>
+                        reste joignable : avec le protocole à jetons, il continue de céder ses jetons à ceux qui les demandent.</p>
                 </div>
             </div>
             <div class="card flush">
@@ -571,6 +601,26 @@ const icon = (name, cls = '') => `<svg class="${cls}"><use href="#i-${name}"/></
 const forks = (list, hot) => (list && list.length)
     ? list.map(f => `<span class="fork${hot ? ' hot' : ''}">F${f}</span>`).join('') : '<span class="none">—</span>';
 const stateBadge = st => `<span class="state ${st}">${labels[st] || st}</span>`;
+const modeLabels = {
+    SPOILED: 'Philosophes gâtés · partie 1', NAIVE_SUPERVISOR: 'Superviseur naïf · partie 2',
+    PAIR_SUPERVISOR: 'Superviseur, deux fourchettes · 3.1 / 3.2', TOKEN: 'Protocole à jetons · partie 3.3',
+    ZOOKEEPER: 'Verrous ZooKeeper · partie 3.4'
+};
+const modeShort = { SPOILED: 'gâtés', NAIVE_SUPERVISOR: 'superviseur naïf', PAIR_SUPERVISOR: 'superviseur', TOKEN: 'jetons', ZOOKEEPER: 'ZooKeeper' };
+
+/** Fait défiler un compteur jusqu'à sa nouvelle valeur. */
+function tween(el, to, format = fmtInt) {
+    const from = Number(el.dataset.v ?? to);
+    el.dataset.v = to;
+    if (from === to || matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = format(to); return; }
+    const start = performance.now(), dur = 600;
+    const step = now => {
+        const k = Math.min(1, (now - start) / dur), e = 1 - Math.pow(1 - k, 3);
+        el.textContent = format(from + (to - from) * e);
+        if (k < 1 && Number(el.dataset.v) === to) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+}
 
 async function json(url, options) {
     const r = await fetch(url, options);
@@ -624,41 +674,78 @@ let state = null, cluster = [];
 // Débit et courbe : calculés à partir de l'historique du moniteur (heures de réception des DONE), donc justes dès
 // l'ouverture de la page. « now » = dernier événement reçu par le serveur : insensible au décalage d'horloge.
 let mealLog = { now: 0, times: [] };
+let recentEvents = [];     // fil d'activité
+let tokenStates = [];      // état du protocole à jetons de chaque philosophe (mode TOKEN)
 const nodeOf = id => cluster.find(c => c.id === id);
 const isStopped = id => { const c = nodeOf(id); return !!c && (!c.reachable || (c.status && c.status.state === 'STOPPED')); };
 const shownState = p => isStopped(p.id) ? 'STOPPED' : p.state;
 
 // ------------------------------------------------------------------ vue d'ensemble
-function drawTable(philosophers) {
-    const n = philosophers.length, cx = 220, cy = 220, R = 170, forkR = 104;
-    const angle = i => 2 * Math.PI * i / n - Math.PI / 2;
-    const pos = i => [cx + R * Math.cos(angle(i)), cy + R * Math.sin(angle(i))];
-    const forkPos = f => { const a = angle(f) - Math.PI / n; return [cx + forkR * Math.cos(a), cy + forkR * Math.sin(a)]; };
+// La table est construite une fois, puis seulement mise à jour : les fourchettes glissent (transition CSS)
+// au lieu d'être redessinées, ce qui rend les échanges visibles.
+const T = { cx: 220, cy: 220, R: 170, forkR: 104, n: 0 };
+const seatAngle = i => 2 * Math.PI * i / T.n - Math.PI / 2;
+const seatPos = i => [T.cx + T.R * Math.cos(seatAngle(i)), T.cy + T.R * Math.sin(seatAngle(i))];
+const homePos = f => { const a = seatAngle(f) - Math.PI / T.n; return [T.cx + T.forkR * Math.cos(a), T.cy + T.forkR * Math.sin(a)]; };
+/** Place de la k-ième fourchette (sur m) posée devant le philosophe i. */
+function plateSpot(i, k, m) {
+    const a = seatAngle(i), r = T.R - 66, spread = 30 * (k - (m - 1) / 2);
+    return [T.cx + r * Math.cos(a) - spread * Math.sin(a), T.cy + r * Math.sin(a) + spread * Math.cos(a)];
+}
+
+function buildTable(n) {
+    T.n = n;
     let svg = `<defs>
         <radialGradient id="wood" cx="45%" cy="40%" r="70%"><stop offset="0%" stop-color="var(--wood)"/><stop offset="100%" stop-color="var(--wood-2)"/></radialGradient>
         <filter id="lift" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity=".18"/></filter></defs>
-        <circle cx="${cx}" cy="${cy}" r="132" fill="url(#wood)" stroke="var(--wood-edge)" stroke-width="2"/>
-        <circle cx="${cx}" cy="${cy}" r="58" fill="none" stroke="var(--wood-edge)" stroke-opacity=".5" stroke-dasharray="2 6"/>`;
-    philosophers.forEach(p => {
-        if (p.state !== 'EATING') return;
-        const [x, y] = pos(p.id);
-        (p.forks || []).forEach(f => { const [fx, fy] = forkPos(f); svg += `<line class="fork-link" x1="${x}" y1="${y}" x2="${fx}" y2="${fy}"/>`; });
-    });
+        <circle cx="${T.cx}" cy="${T.cy}" r="132" fill="url(#wood)" stroke="var(--wood-edge)" stroke-width="2"/>
+        <circle cx="${T.cx}" cy="${T.cy}" r="58" fill="none" stroke="var(--wood-edge)" stroke-opacity=".5" stroke-dasharray="2 6"/>`;
+    for (let i = 0; i < n; i++) {
+        const [x, y] = seatPos(i);
+        svg += `<g class="seat UNKNOWN" id="seat-${i}" filter="url(#lift)">
+                <circle class="seat-halo" cx="${x}" cy="${y}" r="44" fill="var(--eating)" opacity="0"/>
+                <circle class="seat-body" cx="${x}" cy="${y}" r="35" fill="var(--c)" stroke="var(--surface)" stroke-width="4"/>
+                <text x="${x}" y="${y - 2}" text-anchor="middle" fill="#fff" font-weight="800" font-size="16">P${i}</text>
+                <text id="seat-sub-${i}" x="${x}" y="${y + 14}" text-anchor="middle" fill="#fff" fill-opacity=".92" font-size="11" font-weight="600"></text></g>`;
+    }
     for (let f = 0; f < n; f++) {
-        const [fx, fy] = forkPos(f);
-        const used = philosophers.some(p => p.state === 'EATING' && (p.forks || []).includes(f));
-        svg += `<g><circle cx="${fx}" cy="${fy}" r="15" fill="${used ? 'var(--eating)' : 'var(--surface)'}" stroke="${used ? 'var(--eating)' : 'var(--wood-edge)'}" stroke-width="1.5"/>
-                <text x="${fx}" y="${fy + 4}" text-anchor="middle" font-size="11" font-weight="800" font-family="var(--mono)" fill="${used ? '#fff' : 'var(--muted)'}">F${f}</text></g>`;
+        const [fx, fy] = homePos(f);
+        svg += `<g class="fork-g" id="fork-${f}" data-kind="free" style="transform: translate(${fx}px, ${fy}px)">
+                <circle r="15"/><text y="4" text-anchor="middle">F${f}</text></g>`;
+    }
+    $('table').innerHTML = svg;
+}
+
+function drawTable(philosophers) {
+    const n = philosophers.length;
+    if (T.n !== n) buildTable(n);
+    // qui tient quelle fourchette ? (mange) d'après le moniteur, (jeton détenu, en transit) d'après le protocole
+    const holder = new Map();
+    philosophers.forEach(p => { if (p.state === 'EATING') (p.forks || []).forEach(f => holder.set(f, { who: p.id, kind: 'eat' })); });
+    tokenStates.forEach(t => {
+        if (!t) return;
+        (t.heldTokens || []).forEach(f => { if (!holder.has(f)) holder.set(f, { who: t.id, kind: 'hold' }); });
+        Object.entries(t.inTransit || {}).forEach(([f, to]) => { if (!holder.has(+f)) holder.set(+f, { who: to, kind: 'transit' }); });
+    });
+    const perSeat = new Map();
+    holder.forEach((h, f) => { if (!perSeat.has(h.who)) perSeat.set(h.who, []); perSeat.get(h.who).push(f); });
+    for (let f = 0; f < n; f++) {
+        const g = $('fork-' + f), h = holder.get(f);
+        let x, y;
+        if (h) { const list = perSeat.get(h.who).sort((a, b) => a - b); [x, y] = plateSpot(h.who, list.indexOf(f), list.length); }
+        else [x, y] = homePos(f);
+        g.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+        g.dataset.kind = h ? h.kind : 'free';
     }
     philosophers.forEach(p => {
-        const [x, y] = pos(p.id), st = shownState(p);
-        svg += `<g class="seat ${st}" filter="url(#lift)">
-                <circle class="seat-halo" cx="${x}" cy="${y}" r="44" fill="var(--eating)" opacity="0"/>
-                <circle cx="${x}" cy="${y}" r="35" fill="var(--c)" stroke="var(--surface)" stroke-width="4"/>
-                <text x="${x}" y="${y - 2}" text-anchor="middle" fill="#fff" font-weight="800" font-size="16">P${p.id}</text>
-                <text x="${x}" y="${y + 14}" text-anchor="middle" fill="#fff" fill-opacity=".92" font-size="11" font-weight="600">${labels[st]} · ${p.meals}</text></g>`;
+        const st = shownState(p);
+        $('seat-' + p.id).setAttribute('class', `seat ${st}`);
+        $('seat-sub-' + p.id).textContent = `${labels[st]} · ${p.meals}`;
     });
-    $('table').innerHTML = svg;
+    $('legend-hold').style.display = tokenStates.length ? '' : 'none';
+    $('table-hint').textContent = tokenStates.length
+        ? 'chaque jeton est posé devant le philosophe qui le détient : on le voit circuler'
+        : 'les fourchettes glissent vers le philosophe qui les prend';
 }
 
 async function loadMealTimes() {
@@ -666,6 +753,8 @@ async function loadMealTimes() {
     if (!events.length) { mealLog = { now: 0, times: [] }; return; }
     const at = e => new Date(e.receivedAt).getTime();
     const now = Math.max(...events.map(at));
+    recentEvents = events.slice().sort((a, b) => at(b) - at(a) || b.sequence - a.sequence).slice(0, 10)
+        .map(e => ({ ...e, ago: Math.max(0, Math.round((now - at(e)) / 1000)) }));
     mealLog = { now, times: events.filter(e => e.event.type === 'DONE').map(at).filter(t => now - t <= 60000) };
 }
 
@@ -686,10 +775,24 @@ function drawSpark() {
         <text x="6" y="14" font-size="11" fill="var(--muted)">max ${max.toFixed(1)} repas / s</text>`;
 }
 
+function renderFeed() {
+    const say = e => {
+        const ev = e.event, f = (ev.forks || []).map(x => 'F' + x);
+        if (ev.type === 'HUNGRY') return 'a faim et demande ses fourchettes';
+        if (ev.type === 'EATING') return f.length ? `mange avec ${f.join(' et ')}` : 'mange';
+        return 'a fini de manger, il rend ses fourchettes';
+    };
+    const st = { HUNGRY: 'HUNGRY', EATING: 'EATING', DONE: 'THINKING' };
+    $('feed').innerHTML = recentEvents.map(e => `<li class="${st[e.event.type]}" data-k="${e.sequence}">
+        <span class="avatar">P${e.event.philosopherId}</span><span class="what"><b>P${e.event.philosopherId}</b> ${say(e)}</span>
+        <span class="when">${e.ago === 0 ? 'à l\'instant' : 'il y a ' + e.ago + ' s'}</span></li>`).join('')
+        || '<li class="UNKNOWN"><span class="what muted">en attente des premiers événements…</span></li>';
+}
+
 function renderOverview() {
     const ps = state.philosophers, meals = ps.map(p => p.meals), total = meals.reduce((a, b) => a + b, 0);
-    $('k-meals').textContent = fmtInt(total);
-    $('k-events').textContent = fmtInt(state.totalEvents);
+    tween($('k-meals'), total);
+    tween($('k-events'), state.totalEvents);
     $('k-stale').textContent = `${fmtInt(state.staleEvents)} arrivé(s) hors ordre`;
     $('k-conflicts').textContent = state.conflicts.length;
     $('k-conflicts-card').classList.toggle('bad', state.conflicts.length > 0);
@@ -697,9 +800,10 @@ function renderOverview() {
     const max = Math.max(...meals), min = Math.min(...meals);
     $('k-fair').textContent = max > 0 ? (min / max).toFixed(2) : '—';
     const rate = mealLog.times.filter(t => mealLog.now - t <= 30000).length * 2;      // repas sur 30 s × 2 = par minute
-    $('k-rate').textContent = fmtInt(rate);
+    tween($('k-rate'), rate, v => fmtInt(Math.round(v)));
     drawTable(ps);
     drawSpark();
+    renderFeed();
     $('states').innerHTML = ['THINKING', 'HUNGRY', 'EATING', 'STOPPED'].map(st => {
         const who = ps.filter(p => shownState(p) === st || (st === 'STOPPED' && shownState(p) === 'UNKNOWN'));
         return `<div class="state-tile ${st}"><div class="n">${who.length}</div><div class="t">${labels[st]}</div>
@@ -723,7 +827,7 @@ function renderPhilosophers() {
         const share = total ? Math.round(100 * p.meals / total) : 0;
         const svc = c.reachable === undefined ? '<span class="none">—</span>'
             : !c.reachable ? '<span class="svc off">injoignable</span>'
-            : `<span class="svc ${running ? '' : 'stopped'}">${esc(s.mode || '')} · ${running ? 'actif' : 'arrêté'}</span>`;
+            : `<span class="svc ${running ? '' : 'stopped'}">${esc(modeShort[s.mode] || s.mode || '')} · ${running ? 'actif' : 'arrêté'}</span>`;
         const action = !c.reachable ? '' : running
             ? `<button class="btn sm quiet-danger" data-act="stop" data-id="${p.id}">${icon('stop')}Arrêter</button>`
             : `<button class="btn sm success" data-act="start" data-id="${p.id}">${icon('play')}Redémarrer</button>`;
@@ -752,10 +856,15 @@ $('philosophers').addEventListener('click', async e => {
 
 // ------------------------------------------------------------------ jetons
 const emptyState = (ico, text) => `<div class="card empty" style="grid-column:1/-1">${icon(ico)}<div>${text}</div></div>`;
+const tokenNodes = () => cluster.filter(c => c.reachable && c.status && c.status.mode === 'TOKEN');
+async function loadTokenStates() {
+    const nodes = tokenNodes();
+    tokenStates = nodes.length ? await Promise.all(nodes.map(c => json(`/api/cluster/${c.id}/token-state`).catch(() => null))) : [];
+}
 async function renderTokens() {
-    const nodes = cluster.filter(c => c.reachable && c.status && c.status.mode === 'TOKEN');
-    if (!nodes.length) { $('tokens').innerHTML = emptyState('key', 'Aucun philosophe en mode TOKEN.<br>Lancez <code>./scripts/run-local.sh TOKEN</code>.'); return; }
-    const states = await Promise.all(nodes.map(c => json(`/api/cluster/${c.id}/token-state`).catch(() => null)));
+    const nodes = tokenNodes();
+    if (!nodes.length) { $('tokens').innerHTML = emptyState('key', 'Aucun philosophe n\'utilise le protocole à jetons.<br>Lancez <code>./scripts/run-local.sh TOKEN</code>.'); return; }
+    const states = tokenStates;
     $('tokens').innerHTML = states.map((t, i) => {
         if (!t) return `<div class="card token-card"><div class="card-head"><h2>P${nodes[i].id}</h2></div><div class="card-body muted">état indisponible</div></div>`;
         const st = t.eating ? 'EATING' : t.current ? 'HUNGRY' : 'THINKING';
@@ -857,7 +966,7 @@ function drawBars(rows) {
 async function refreshCluster() {
     try { cluster = await json('/api/cluster'); } catch { cluster = []; }
     const modes = [...new Set(cluster.filter(c => c.reachable && c.status).map(c => c.status.mode))];
-    $('mode').textContent = modes.length ? 'mode ' + modes.join(', ') : 'philosophes injoignables';
+    $('mode').textContent = modes.length ? modes.map(m => modeLabels[m] || m).join(' + ') : 'philosophes injoignables';
 }
 let tick = 0;
 async function refresh() {
@@ -866,6 +975,7 @@ async function refresh() {
         state = await json('/api/state');
         if (activeTab === 'overview') await loadMealTimes();
         if (tick++ % 2 === 0 || activeTab === 'philosophers' || activeTab === 'tokens') await refreshCluster();
+        if (activeTab === 'overview' || activeTab === 'tokens') await loadTokenStates();
     } catch (err) {
         $('live').className = 'chip down'; $('live-text').textContent = 'moniteur injoignable';
         return;

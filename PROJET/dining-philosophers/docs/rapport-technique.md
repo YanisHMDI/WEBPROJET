@@ -190,8 +190,10 @@ Le moniteur sert un panneau de contrôle (<http://localhost:8080>). Il se met à
 onglets. Le navigateur ne parle qu'au moniteur, qui relaie les commandes vers les philosophes
 (`/api/cluster`).
 
-**Vue d'ensemble.** La table en direct : chaque philosophe qui mange est relié en vert aux fourchettes qu'il
-tient. On y trouve aussi :
+**Vue d'ensemble.** La table en direct. Les fourchettes **glissent** vers le philosophe qui les prend. Avec le
+protocole à jetons, chaque jeton est posé devant le philosophe qui le détient, ce qui permet de **voir les jetons
+circuler** autour de la table. Un **fil d'activité** raconte les derniers événements (« P3 mange avec F1 et
+F3 »). On y trouve aussi :
 - le débit et la courbe des repas par seconde, calculés à partir de l'historique du moniteur, donc justes
   dès l'ouverture de la page ;
 - la répartition des états ;
@@ -221,6 +223,9 @@ philosophes voient le même ordre de priorité.
 
 **Choix de conception.**
 - Une couleur par état (pense, a faim, mange, arrêté), la même partout : table, badges, tableaux.
+- Une table construite une seule fois puis mise à jour, pour que les déplacements des fourchettes soient animés
+  au lieu d'être redessinés d'un coup.
+- Des libellés en français, par exemple « Protocole à jetons · partie 3.3 » plutôt que `TOKEN`.
 - Un thème clair et un thème sombre : celui du système par défaut, ou forcé avec le bouton ou `?theme=dark`.
 - Un lien direct vers chaque onglet (`/#tokens`).
 - Une mise en page adaptée au mobile, une navigation au clavier visible, et des animations coupées si
