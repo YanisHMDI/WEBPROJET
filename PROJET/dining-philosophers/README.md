@@ -700,5 +700,10 @@ Toutes les parties du sujet sont réalisées. Avant le rendu :
 - [ ] Rédiger la section « Utilisation de l'IA » du [rapport technique](docs/rapport-technique.md#8-utilisation-de-lia)
   (sujet, §8.2).
 - [ ] Ajouter au rapport des captures du tableau de bord pour chaque partie.
-- [ ] Lancer une fois `docker compose up --build` et la CI sur GitHub : les fichiers sont validés, mais ils
-  n'ont pas pu être exécutés sur la machine de développement, faute de démon Docker et de cluster.
+- [ ] Lancer une fois `docker compose up --build`, et un déploiement Kubernetes (avec kind ou minikube). Les
+  fichiers sont validés, mais ils n'ont pas pu être exécutés sur la machine de développement, faute de démon
+  Docker et de cluster.
+- [ ] Rendre publics les paquets ghcr.io, ou ajouter un `imagePullSecret`, pour que Kubernetes puisse
+  télécharger les images.
+
+La CI GitHub Actions passe entièrement : tests, validation de la configuration, publication des 3 images.

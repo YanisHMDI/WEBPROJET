@@ -199,7 +199,8 @@ Le détail est dans `master-worker.md`.
 | 9 | Tests aléatoires **non déterministes** : un graphe aléatoire pouvait terminer le parcours avant la panne simulée | un graphe construit à la main (une chaîne) pour les scénarios de panne |
 | 10 | Tests HTTP sur **ports aléatoires** : le port fixé dans `application.yml` l'emportait | réglages passés en arguments de ligne de commande, qui sont prioritaires, et annuaire des pairs modifiable à chaud (`PeerDirectory`) |
 | 11 | Mesures faussées par la **mise en veille** du portable : des tests de 3 s semblaient durer 10 minutes | `caffeinate -i mvn verify`, et la cause a été confirmée dans le journal d'alimentation du système |
-| 12 | Le calcul distribué se révèle **plus lent** que le séquentiel | ce n'est pas un bug, c'est un résultat : transférer coûte plus que calculer. Il est analysé avec la loi d'Amdahl (voir 6.3) |
+| 12 | CI : les trois images construites en parallèle étaient **limitées par Maven Central** (erreur 429) | une image à la fois, dépôt Maven en cache (BuildKit), réessais automatiques de Maven |
+| 13 | Le calcul distribué se révèle **plus lent** que le séquentiel | ce n'est pas un bug, c'est un résultat : transférer coûte plus que calculer. Il est analysé avec la loi d'Amdahl (voir 6.3) |
 
 ## 6. Résultats
 
@@ -259,8 +260,9 @@ nombre de niveaux.
   sujet, et sa limite.
 - **Mesures.** Elles sont faites sur une seule machine. Sur un vrai réseau, la latence augmenterait, mais la
   puissance de calcul aussi.
-- **Déploiement.** Le `docker compose up` complet, le déploiement Kubernetes et la première exécution de la CI
-  n'ont pas pu être lancés sur la machine de développement, qui n'avait ni démon Docker ni cluster. Les
+- **Déploiement.** La CI GitHub Actions passe entièrement : tests, validation de la configuration et
+  publication des images. En revanche, le `docker compose up` complet et le déploiement sur un vrai cluster
+  n'ont pas pu être lancés sur la machine de développement, qui n'avait ni démon Docker ni cluster. Leurs
   fichiers sont validés : `docker compose config`, `kubectl kustomize`, et dans la CI `kubeconform` et
   `promtool`.
 

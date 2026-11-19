@@ -148,10 +148,23 @@ service, et les journaux du protocole indiquent le philosophe (P0, P1…).
 - `docker compose config` ;
 - le rendu des manifests par `kubectl kustomize`.
 
+**Vérifié sur GitHub Actions :**
+- les 111 tests ;
+- la validation des manifests Kubernetes (`kubeconform`), du Compose et de Prometheus (`promtool`) ;
+- la construction et la publication des 3 images sur ghcr.io.
+
 **Non exécuté ici**, faute de démon Docker et de cluster Kubernetes sur la machine :
 - le `docker compose up` complet ;
-- le déploiement sur un vrai cluster ;
-- la première exécution de la CI sur GitHub.
+- le déploiement sur un vrai cluster.
+
+Les images publiées sur ghcr.io sont **privées par défaut**. Pour qu'un cluster puisse les télécharger, rendez
+les paquets publics (GitHub, onglet *Packages*, puis *Package settings*), ou ajoutez un `imagePullSecret`.
+
+**Difficulté rencontrée.** Au premier lancement de la CI, les trois images construites en parallèle ont été
+limitées par Maven Central (erreur 429). La solution :
+- une image à la fois (`max-parallel: 1`) ;
+- le dépôt Maven gardé en cache par BuildKit ;
+- des réessais automatiques de Maven.
 
 Pour tester le déploiement Kubernetes en local, installez **kind** ou **minikube**, chargez les images
 construites localement, puis lancez `kubectl apply -k k8s`.
