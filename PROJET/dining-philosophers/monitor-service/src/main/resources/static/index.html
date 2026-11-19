@@ -3,173 +3,507 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
 <title>Dîner des philosophes</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23c8a978'/%3E%3Ccircle cx='16' cy='5' r='3.5' fill='%233f5bd8'/%3E%3Ccircle cx='26.5' cy='19' r='3.5' fill='%2337a05b'/%3E%3Ccircle cx='5.5' cy='19' r='3.5' fill='%23e08a1e'/%3E%3C/svg%3E">
 <style>
-    :root {
-        --bg: #f4f2ee; --panel: #ffffff; --panel-2: #faf8f5; --line: #e4dfd6; --text: #22201c; --muted: #6f6a61;
-        --accent: #3b5bdb; --accent-soft: #e7ecfd;
-        --thinking: #4c6ef5; --hungry: #f08c00; --eating: #2f9e44; --unknown: #adb5bd; --stopped: #868e96;
-        --danger: #e03131; --danger-soft: #ffe3e3; --ok: #2f9e44; --ok-soft: #e3f6e6;
-        --table: #efe7da; --table-edge: #d8ccb8; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
-        --radius: 14px;
+/* =====================================================================================================
+   Jetons de conception
+   -----------------------------------------------------------------------------------------------------
+   Une seule source pour les couleurs : chaque état (pense / a faim / mange / arrêté) a une couleur vive
+   (--x) et une couleur douce (--x-soft), utilisées partout : table, badges, tableaux.
+   Thème clair par défaut, thème sombre automatique (préférence du système) ou forcé par le bouton.
+   ===================================================================================================== */
+:root {
+    --bg: #f5f3ef;
+    --bg-grad: radial-gradient(1200px 600px at 10% -10%, #ffffff 0%, transparent 60%);
+    --surface: #ffffff;
+    --surface-2: #f8f6f2;
+    --surface-3: #efece6;
+    --line: #e6e1d8;
+    --line-strong: #d6cfc3;
+    --text: #1f1d1a;
+    --text-2: #4d4943;
+    --muted: #807a70;
+
+    --accent: #3f5bd8;
+    --accent-hover: #3550c6;
+    --accent-soft: #e9edfc;
+    --on-accent: #ffffff;
+
+    --thinking: #4263eb;  --thinking-soft: #e8ecfd;
+    --hungry: #e08a1e;    --hungry-soft: #fdf1e1;
+    --eating: #2f9e57;    --eating-soft: #e3f5ea;
+    --stopped: #9097a0;   --stopped-soft: #eef0f2;
+    --danger: #d63a3a;    --danger-soft: #fdeaea;
+    --success: #2f9e57;   --success-soft: #e3f5ea;
+
+    --wood: #e9dcc6; --wood-2: #dcc8a8; --wood-edge: #c8af89;
+
+    --radius-sm: 8px; --radius: 12px; --radius-lg: 18px;
+    --shadow-sm: 0 1px 2px rgba(40, 32, 20, .06);
+    --shadow: 0 1px 2px rgba(40, 32, 20, .05), 0 8px 24px -12px rgba(40, 32, 20, .18);
+    --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+    --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg: #111214; --bg-grad: radial-gradient(1200px 600px at 10% -10%, #1b1d22 0%, transparent 60%);
+        --surface: #191b1f; --surface-2: #1f2126; --surface-3: #262930;
+        --line: #2b2e35; --line-strong: #3a3e47; --text: #ecebe8; --text-2: #c3c0b9; --muted: #8f8b84;
+        --accent: #7d93ff; --accent-hover: #93a5ff; --accent-soft: #232a45; --on-accent: #0f1222;
+        --thinking: #7d93ff; --thinking-soft: #222944; --hungry: #f0a443; --hungry-soft: #3a2a14;
+        --eating: #4cc47a; --eating-soft: #17321f; --stopped: #7c838c; --stopped-soft: #24272c;
+        --danger: #ff6b6b; --danger-soft: #3a1c1e; --success: #4cc47a; --success-soft: #17321f;
+        --wood: #3a3127; --wood-2: #31291f; --wood-edge: #4a3f31;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4); --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px -14px rgba(0, 0, 0, .7);
     }
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --bg: #141517; --panel: #1c1d21; --panel-2: #212226; --line: #2e3036; --text: #e9e7e2; --muted: #9a968d;
-            --accent: #7b93ff; --accent-soft: #252c47;
-            --danger-soft: #3b1f21; --ok-soft: #1b3122; --table: #2a2722; --table-edge: #3b362e;
-            --shadow: 0 1px 2px rgba(0,0,0,.4);
-        }
-    }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text);
-           font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-    header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 18px 28px 0; }
-    header h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
-    header .sub { color: var(--muted); font-size: 13px; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
-             font-size: 12px; font-weight: 600; background: var(--accent-soft); color: var(--accent); }
-    .badge.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
-                          animation: pulse 1.6s infinite; }
-    .badge.off { background: var(--danger-soft); color: var(--danger); }
-    .badge.off::before { background: var(--danger); animation: none; }
-    @keyframes pulse { 50% { opacity: .3; } }
-    .spacer { flex: 1; }
-    nav { display: flex; gap: 4px; padding: 14px 28px 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
-    nav button { border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer;
-                 padding: 10px 14px; border-bottom: 2px solid transparent; white-space: nowrap; }
-    nav button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
-    main { padding: 22px 28px 40px; max-width: 1400px; }
-    .tab { display: none; } .tab.active { display: block; }
-    .grid { display: grid; gap: 18px; }
-    .kpis { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 18px; }
-    .two { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
-    @media (max-width: 980px) { .two { grid-template-columns: 1fr; } main, header, nav { padding-left: 16px; padding-right: 16px; } }
-    .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px;
-            box-shadow: var(--shadow); min-width: 0; }
-    .card h2 { font-size: 14px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
-    .kpi .label { color: var(--muted); font-size: 13px; }
-    .kpi .value { font-size: 30px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-    .kpi .hint { color: var(--muted); font-size: 12px; }
-    .kpi.bad .value { color: var(--danger); } .kpi.good .value { color: var(--ok); }
-    svg text { font-family: inherit; }
-    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-    th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); font-size: 14px; }
-    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
-    tr:last-child td { border-bottom: 0; }
-    .scroll { max-height: 520px; overflow: auto; }
-    .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #fff; }
-    .THINKING { background: var(--thinking); } .HUNGRY { background: var(--hungry); } .EATING { background: var(--eating); }
-    .UNKNOWN, .STOPPED { background: var(--unknown); }
-    .fork { display: inline-block; min-width: 30px; padding: 1px 7px; margin: 1px 2px; border-radius: 6px; font-size: 12px;
-            font-weight: 600; background: var(--panel-2); border: 1px solid var(--line); text-align: center; }
-    .btn { border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; font-weight: 600;
-           border-radius: 9px; padding: 7px 14px; cursor: pointer; }
-    .btn:hover { border-color: var(--accent); }
-    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-    .btn.danger { color: var(--danger); }
-    .btn:disabled { opacity: .5; cursor: default; }
-    .ok-box, .bad-box { padding: 12px 14px; border-radius: 10px; font-weight: 600; }
-    .ok-box { background: var(--ok-soft); color: var(--ok); } .bad-box { background: var(--danger-soft); color: var(--danger); }
-    .muted { color: var(--muted); } .small { font-size: 13px; }
-    form.job { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; align-items: end; }
-    label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); font-weight: 600; }
-    input, select { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line);
-                    border-radius: 9px; padding: 8px 10px; width: 100%; }
-    .results { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-top: 16px; }
-    .tokens { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
-    .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); margin-top: 8px; }
-    .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%;
-                           margin-right: 6px; vertical-align: -1px; background: var(--c); }
-    .empty { color: var(--muted); padding: 24px; text-align: center; }
-    code { font-size: 12.5px; background: var(--panel-2); padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line); }
+}
+:root[data-theme="dark"] {
+    --bg: #111214; --bg-grad: radial-gradient(1200px 600px at 10% -10%, #1b1d22 0%, transparent 60%);
+    --surface: #191b1f; --surface-2: #1f2126; --surface-3: #262930;
+    --line: #2b2e35; --line-strong: #3a3e47; --text: #ecebe8; --text-2: #c3c0b9; --muted: #8f8b84;
+    --accent: #7d93ff; --accent-hover: #93a5ff; --accent-soft: #232a45; --on-accent: #0f1222;
+    --thinking: #7d93ff; --thinking-soft: #222944; --hungry: #f0a443; --hungry-soft: #3a2a14;
+    --eating: #4cc47a; --eating-soft: #17321f; --stopped: #7c838c; --stopped-soft: #24272c;
+    --danger: #ff6b6b; --danger-soft: #3a1c1e; --success: #4cc47a; --success-soft: #17321f;
+    --wood: #3a3127; --wood-2: #31291f; --wood-edge: #4a3f31;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .4); --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px -14px rgba(0, 0, 0, .7);
+}
+
+/* ===================================================================================================== base */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+    margin: 0; min-height: 100vh; color: var(--text); background: var(--bg-grad), var(--bg);
+    font: 15px/1.55 var(--font); -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01";
+}
+h1, h2, h3 { margin: 0; letter-spacing: -.015em; }
+code { font: 12.5px var(--mono); background: var(--surface-3); padding: 1px 6px; border-radius: 6px; }
+:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--radius-sm); }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ===================================================================================================== en-tête */
+.topbar {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    backdrop-filter: saturate(160%) blur(12px); -webkit-backdrop-filter: saturate(160%) blur(12px);
+    border-bottom: 1px solid var(--line);
+}
+.topbar-inner, .tabs-inner, main { max-width: 1360px; margin: 0 auto; padding-left: 28px; padding-right: 28px; }
+.topbar-inner { display: flex; align-items: center; gap: 16px; padding-top: 14px; padding-bottom: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand-mark { width: 38px; height: 38px; flex: none; }
+.brand h1 { font-size: 18px; font-weight: 750; }
+.brand .sub { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spacer { flex: 1; }
+.status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.chip {
+    display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 11px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 650; background: var(--surface); border: 1px solid var(--line); color: var(--text-2);
+    white-space: nowrap;
+}
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.chip.live { color: var(--success); background: var(--success-soft); border-color: transparent; }
+.chip.live .dot { animation: pulse 1.8s ease-in-out infinite; }
+.chip.down { color: var(--danger); background: var(--danger-soft); border-color: transparent; }
+.chip.mode { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
+
+/* onglets : contrôle segmenté */
+.tabs-inner { padding-bottom: 12px; overflow-x: auto; scrollbar-width: none; }
+.tabs-inner::-webkit-scrollbar { display: none; }
+.tabs { display: inline-flex; gap: 2px; padding: 4px; border-radius: 12px; background: var(--surface-3); }
+.tab-btn {
+    display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; color: var(--muted);
+    font: 600 14px var(--font); padding: 7px 14px; border-radius: 9px; cursor: pointer; white-space: nowrap;
+    transition: color .15s, background .15s, box-shadow .15s;
+}
+.tab-btn svg { width: 16px; height: 16px; flex: none; }
+.tab-btn:hover { color: var(--text); }
+.tab-btn[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+
+/* ===================================================================================================== boutons */
+.btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 34px; padding: 0 14px;
+    border-radius: 10px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--text);
+    font: 600 13.5px var(--font); cursor: pointer; white-space: nowrap;
+    transition: background .15s, border-color .15s, color .15s, transform .05s;
+}
+.btn svg { width: 15px; height: 15px; }
+.btn:hover { background: var(--surface-2); border-color: var(--muted); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn.danger { color: var(--danger); }
+.btn.quiet-danger svg { color: var(--danger); }
+.btn.quiet-danger:hover { color: var(--danger); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.btn.danger:hover { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 40%, transparent); }
+.btn.success { color: var(--success); }
+.btn.success:hover { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 40%, transparent); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+.btn.ghost:hover { color: var(--text); background: var(--surface-3); }
+.btn.sm { height: 30px; padding: 0 11px; font-size: 13px; }
+.btn.icon { width: 34px; padding: 0; }
+.btn:disabled { opacity: .5; cursor: progress; transform: none; }
+
+/* ===================================================================================================== mise en page */
+main { padding-top: 24px; padding-bottom: 56px; }
+.view { display: none; }
+.view.active { display: block; animation: rise .25s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.stack { display: grid; gap: 18px; }
+.cols { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--shadow); min-width: 0; }
+.card-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px 0; flex-wrap: wrap; }
+.card-head h2 { font-size: 15px; font-weight: 700; }
+.card-head .hint { color: var(--muted); font-size: 13px; }
+.card-body { padding: 14px 20px 20px; }
+.card.flush .card-body { padding: 10px 0 6px; }
+.intro { padding: 18px 20px; display: flex; gap: 14px; align-items: flex-start; }
+.intro .ico { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.intro .ico svg { width: 18px; height: 18px; }
+.intro h2 { font-size: 15.5px; font-weight: 700; margin-bottom: 2px; }
+.intro p { margin: 0; color: var(--text-2); font-size: 14px; max-width: 80ch; }
+
+/* ===================================================================================================== indicateurs */
+.kpis { display: grid; gap: 14px; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-bottom: 18px; }
+.kpi { position: relative; padding: 16px 18px 15px; overflow: hidden; }
+.kpi::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--kpi, var(--accent)); opacity: .9; }
+.kpi .label { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; }
+.kpi .label svg { width: 15px; height: 15px; color: var(--kpi, var(--accent)); }
+.kpi .value { font-size: 30px; font-weight: 780; letter-spacing: -.03em; line-height: 1.15; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.kpi .value small { font-size: 14px; font-weight: 600; color: var(--muted); letter-spacing: 0; margin-left: 3px; }
+.kpi .hint { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.kpi.good { --kpi: var(--success); background: linear-gradient(180deg, var(--success-soft), var(--surface) 70%); }
+.kpi.good .value { color: var(--success); }
+.kpi.bad { --kpi: var(--danger); background: linear-gradient(180deg, var(--danger-soft), var(--surface) 70%); }
+.kpi.bad .value { color: var(--danger); }
+
+/* ===================================================================================================== table ronde */
+.table-wrap { position: relative; display: grid; place-items: center; padding: 6px 0 2px; }
+#table { width: 100%; max-width: 520px; height: auto; display: block; overflow: visible; }
+.seat { transition: transform .3s ease; transform-box: fill-box; transform-origin: center; }
+.seat-halo { opacity: 0; transition: opacity .3s; }
+.seat.EATING .seat-halo { opacity: 1; animation: halo 2.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes halo { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: .2; transform: scale(1.12); } }
+.fork-link { stroke: var(--eating); stroke-width: 3.5; stroke-linecap: round; opacity: .6; }
+.legend { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px 18px; padding: 8px 20px 18px; font-size: 13px; color: var(--text-2); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent); }
+
+.spark { width: 100%; height: 120px; display: block; }
+.states { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.state-tile { padding: 12px 14px; border-radius: var(--radius); background: var(--c-soft); color: var(--c); }
+.state-tile .n { font-size: 26px; font-weight: 780; letter-spacing: -.02em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.state-tile .t { font-size: 12.5px; font-weight: 650; }
+.state-tile .who-list { margin-top: 6px; font: 600 11.5px var(--mono); opacity: .85; min-height: 1em; }
+@media (max-width: 640px) { .states { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ===================================================================================================== badges d'état et fourchettes */
+.state {
+    display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px 0 8px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 650; color: var(--c); background: var(--c-soft); white-space: nowrap;
+}
+.state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.THINKING { --c: var(--thinking); --c-soft: var(--thinking-soft); }
+.HUNGRY { --c: var(--hungry); --c-soft: var(--hungry-soft); }
+.EATING { --c: var(--eating); --c-soft: var(--eating-soft); }
+.DONE { --c: var(--thinking); --c-soft: var(--thinking-soft); }
+.UNKNOWN, .STOPPED { --c: var(--stopped); --c-soft: var(--stopped-soft); }
+.fork {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 22px; padding: 0 7px;
+    margin: 1px 3px 1px 0; border-radius: 6px; font: 650 12px var(--mono); color: var(--text-2);
+    background: var(--surface-2); border: 1px solid var(--line);
+}
+.fork.hot { color: var(--eating); background: var(--eating-soft); border-color: transparent; }
+.none { color: var(--muted); }
+
+/* ===================================================================================================== tableaux */
+.table-scroll { max-height: 560px; overflow: auto; }
+table { width: 100%; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 11px 16px; font-size: 14px; vertical-align: middle; }
+th {
+    position: sticky; top: 0; z-index: 1; background: var(--surface); color: var(--muted); font-size: 11.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--line);
+}
+td { border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+tbody tr { transition: background .12s; }
+tbody tr:hover { background: var(--surface-2); }
+tbody tr:last-child td { border-bottom: 0; }
+th:first-child, td:first-child { padding-left: 20px; }
+th:last-child, td:last-child { padding-right: 20px; }
+td.right, th.right { text-align: right; }
+.who { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; }
+.avatar {
+    width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 800;
+    color: #fff; background: var(--c, var(--stopped));
+}
+.share { display: flex; align-items: center; gap: 10px; min-width: 120px; }
+.bar { flex: 1; height: 6px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.bar > i { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .4s ease; }
+.svc { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); }
+.svc::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--success)); }
+.svc.off { --c: var(--danger); color: var(--danger); }
+.svc.stopped { --c: var(--stopped); }
+
+/* ===================================================================================================== messages */
+.alert { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: var(--radius); font-size: 14px; }
+.alert svg { width: 20px; height: 20px; flex: none; margin-top: 1px; }
+.alert strong { display: block; font-weight: 700; }
+.alert.ok { background: var(--success-soft); color: var(--success); }
+.alert.bad { background: var(--danger-soft); color: var(--danger); }
+.alert .detail { color: var(--text-2); font-weight: 400; }
+.empty { display: grid; place-items: center; gap: 8px; text-align: center; padding: 40px 20px; color: var(--muted); }
+.empty svg { width: 36px; height: 36px; opacity: .55; }
+
+.toasts { position: fixed; right: 20px; bottom: 20px; z-index: 50; display: grid; gap: 10px; width: min(380px, calc(100vw - 40px)); }
+.toast {
+    display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--radius);
+    background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); font-size: 14px;
+    animation: toast-in .2s ease-out;
+}
+.toast::before { content: ""; width: 4px; align-self: stretch; border-radius: 4px; background: var(--c, var(--accent)); }
+.toast.bad { --c: var(--danger); } .toast.ok { --c: var(--success); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ===================================================================================================== jetons */
+.token-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(236px, 1fr)); }
+.token-card .card-head { justify-content: space-between; }
+.token-card dl { display: grid; gap: 12px; margin: 0; }
+.token-card dt { color: var(--muted); font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+.token-card dd { margin: 0; }
+.queue { display: grid; gap: 6px; }
+.queue-row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 8px; background: var(--surface-2); font-size: 13px; }
+.queue-row .fork { margin-right: 0; margin-left: 3px; }
+.queue-row .rank { font: 700 12px var(--mono); color: var(--muted); min-width: 18px; }
+.queue-row .ts { font: 600 12.5px var(--mono); color: var(--text-2); }
+.queue-row.first { background: var(--accent-soft); }
+.queue-row.first .rank { color: var(--accent); }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
+.stats b { color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* ===================================================================================================== calcul distribué */
+.job { display: grid; gap: 14px; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: end; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field span { font-size: 12.5px; font-weight: 650; color: var(--text-2); }
+.field input, .field select {
+    width: 100%; height: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line-strong);
+    background: var(--surface-2); color: var(--text); font: 14px var(--font); font-variant-numeric: tabular-nums;
+    transition: border-color .15s, box-shadow .15s, background .15s; appearance: none;
+}
+.field select {
+    padding-right: 32px; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23807a70' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+}
+.field input:hover, .field select:hover { border-color: var(--muted); }
+.field input:focus, .field select:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); background: var(--surface); }
+.field.wide { grid-column: span 2; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.results { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 18px; }
+.result { padding: 13px 15px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--line); }
+.result .label { font-size: 12px; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.result .value { font-size: 20px; font-weight: 750; letter-spacing: -.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.result.good { background: var(--success-soft); border-color: transparent; } .result.good .value { color: var(--success); }
+.result.bad { background: var(--danger-soft); border-color: transparent; } .result.bad .value { color: var(--danger); }
+.result.warn .value { color: var(--hungry); }
+.progress { height: 3px; border-radius: 3px; background: var(--surface-3); overflow: hidden; margin-top: 18px; }
+.progress i { display: block; height: 100%; width: 35%; background: var(--accent); border-radius: inherit; animation: slide 1.1s ease-in-out infinite; }
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+#bars { width: 100%; height: 280px; display: block; }
+
+footer { max-width: 1360px; margin: 0 auto; padding: 0 28px 28px; color: var(--muted); font-size: 12.5px; }
+
+/* ===================================================================================================== responsive */
+@media (max-width: 1180px) {
+    .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .job { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 960px) {
+    .cols { grid-template-columns: 1fr; }
+    .results { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+    .topbar-inner, .tabs-inner, main, footer { padding-left: 16px; padding-right: 16px; }
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .kpis > :last-child { grid-column: span 2; }
+    .kpi .value { font-size: 24px; }
+    .job { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .field.wide { grid-column: span 2; }
+    .brand .sub { display: none; }
+    .tab-btn { padding: 7px 11px; }
+    .tab-btn .lbl { display: none; }
+    th, td { padding: 10px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+}
 </style>
 </head>
 <body>
-<header>
-    <div>
-        <h1>Le dîner des philosophes</h1>
-        <div class="sub" id="meta">connexion au moniteur…</div>
-    </div>
-    <span class="badge live" id="live">en direct</span>
-    <span class="badge" id="mode">mode —</span>
-    <span class="spacer"></span>
-    <button class="btn" id="reset" title="Efface l'historique et les conflits du moniteur">Réinitialiser l'historique</button>
-</header>
+<!-- icônes (traits simples, 24×24) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+        <symbol id="i-table" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><circle cx="12" cy="3" r="1.5"/><circle cx="20.5" cy="15" r="1.5"/><circle cx="3.5" cy="15" r="1.5"/><circle cx="16.5" cy="21" r="1.5"/><circle cx="7.5" cy="21" r="1.5"/></symbol>
+        <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+        <symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></symbol>
+        <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+        <symbol id="i-graph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7.5 6h9M6.3 8.2l4.4 7.6M17.7 8.2l-4.4 7.6"/></symbol>
+        <symbol id="i-meal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2V2M6 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></symbol>
+        <symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+        <symbol id="i-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1ZM2 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1ZM7 21h10M12 3v18M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></symbol>
+        <symbol id="i-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+        <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+        <symbol id="i-reset" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+        <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 14 9-14 9V3z"/></symbol>
+        <symbol id="i-stop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/></symbol>
+        <symbol id="i-bars" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9M13 17V5M8 17v-3"/></symbol>
+        <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    </defs>
+</svg>
 
-<nav role="tablist">
-    <button role="tab" aria-selected="true" data-tab="overview">Vue d'ensemble</button>
-    <button role="tab" aria-selected="false" data-tab="philosophers">Philosophes</button>
-    <button role="tab" aria-selected="false" data-tab="tokens">Jetons</button>
-    <button role="tab" aria-selected="false" data-tab="history">Historique</button>
-    <button role="tab" aria-selected="false" data-tab="graph">Calcul distribué</button>
-</nav>
+<header class="topbar">
+    <div class="topbar-inner">
+        <div class="brand">
+            <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+                <circle cx="20" cy="20" r="13" fill="var(--wood-2)" stroke="var(--wood-edge)" stroke-width="1.5"/>
+                <circle cx="20" cy="5.5" r="4" fill="var(--thinking)"/><circle cx="33.8" cy="15.5" r="4" fill="var(--eating)"/>
+                <circle cx="28.5" cy="31.7" r="4" fill="var(--thinking)"/><circle cx="11.5" cy="31.7" r="4" fill="var(--hungry)"/>
+                <circle cx="6.2" cy="15.5" r="4" fill="var(--eating)"/>
+            </svg>
+            <div style="min-width:0">
+                <h1>Le dîner des philosophes</h1>
+                <div class="sub" id="meta">connexion au moniteur…</div>
+            </div>
+        </div>
+        <span class="spacer"></span>
+        <div class="status">
+            <span class="chip mode" id="mode">mode —</span>
+            <span class="chip live" id="live" role="status"><span class="dot"></span><span id="live-text">en direct</span></span>
+            <button class="btn ghost icon" id="theme" title="Changer de thème" aria-label="Changer de thème"><svg><use href="#i-moon"/></svg></button>
+            <button class="btn sm" id="reset" title="Efface l'historique et les conflits du moniteur"><svg><use href="#i-reset"/></svg>Réinitialiser</button>
+        </div>
+    </div>
+    <div class="tabs-inner">
+        <nav class="tabs" role="tablist" aria-label="Sections">
+            <button class="tab-btn" role="tab" aria-selected="true" data-tab="overview"><svg><use href="#i-table"/></svg><span class="lbl">Vue d'ensemble</span></button>
+            <button class="tab-btn" role="tab" aria-selected="false" data-tab="philosophers"><svg><use href="#i-users"/></svg><span class="lbl">Philosophes</span></button>
+            <button class="tab-btn" role="tab" aria-selected="false" data-tab="tokens"><svg><use href="#i-key"/></svg><span class="lbl">Jetons</span></button>
+            <button class="tab-btn" role="tab" aria-selected="false" data-tab="history"><svg><use href="#i-list"/></svg><span class="lbl">Historique</span></button>
+            <button class="tab-btn" role="tab" aria-selected="false" data-tab="graph"><svg><use href="#i-graph"/></svg><span class="lbl">Calcul distribué</span></button>
+        </nav>
+    </div>
+</header>
 
 <main>
     <!-- ================================================================ VUE D'ENSEMBLE -->
-    <section class="tab active" id="tab-overview">
-        <div class="grid kpis">
-            <div class="card kpi"><div class="label">Repas terminés</div><div class="value" id="k-meals">0</div><div class="hint">tous philosophes confondus</div></div>
-            <div class="card kpi"><div class="label">Débit</div><div class="value" id="k-rate">0</div><div class="hint">repas par minute (30 dernières s)</div></div>
-            <div class="card kpi" id="k-conflicts-card"><div class="label">Conflits</div><div class="value" id="k-conflicts">0</div><div class="hint">fourchette partagée (doit rester à 0)</div></div>
-            <div class="card kpi"><div class="label">Équité</div><div class="value" id="k-fair">—</div><div class="hint">repas du moins servi / du plus servi</div></div>
-            <div class="card kpi"><div class="label">Événements</div><div class="value" id="k-events">0</div><div class="hint" id="k-stale">0 hors ordre</div></div>
+    <section class="view active" id="tab-overview" role="tabpanel">
+        <div class="kpis">
+            <div class="card kpi" style="--kpi: var(--eating)">
+                <div class="label"><svg><use href="#i-meal"/></svg>Repas</div>
+                <div class="value" id="k-meals">0</div><div class="hint">terminés au total</div>
+            </div>
+            <div class="card kpi" style="--kpi: var(--accent)">
+                <div class="label"><svg><use href="#i-gauge"/></svg>Débit</div>
+                <div class="value"><span id="k-rate">0</span><small>/ min</small></div><div class="hint">sur les 30 dernières secondes</div>
+            </div>
+            <div class="card kpi good" id="k-conflicts-card">
+                <div class="label"><svg><use href="#i-shield"/></svg>Conflits</div>
+                <div class="value" id="k-conflicts">0</div><div class="hint">doit rester à 0</div>
+            </div>
+            <div class="card kpi" style="--kpi: var(--hungry)">
+                <div class="label"><svg><use href="#i-scale"/></svg>Équité</div>
+                <div class="value" id="k-fair">—</div><div class="hint">moins servi ÷ plus servi</div>
+            </div>
+            <div class="card kpi" style="--kpi: var(--stopped)">
+                <div class="label"><svg><use href="#i-pulse"/></svg>Événements</div>
+                <div class="value" id="k-events">0</div><div class="hint" id="k-stale">0 hors ordre</div>
+            </div>
         </div>
-        <div class="grid two">
+
+        <div class="cols">
             <div class="card">
-                <h2>La table</h2>
-                <svg id="table" viewBox="0 0 440 440" role="img" aria-label="Table des philosophes"></svg>
+                <div class="card-head"><h2>La table</h2><span class="hint">un trait vert relie chaque philosophe qui mange à ses fourchettes</span></div>
+                <div class="table-wrap"><svg id="table" viewBox="-20 -20 480 480" role="img" aria-label="Table des philosophes"></svg></div>
                 <div class="legend">
-                    <span style="--c: var(--thinking)">pense</span><span style="--c: var(--hungry)">a faim</span>
-                    <span style="--c: var(--eating)">mange</span><span style="--c: var(--unknown)">arrêté / inconnu</span>
+                    <span style="--c: var(--thinking)"><i></i>pense</span>
+                    <span style="--c: var(--hungry)"><i></i>a faim</span>
+                    <span style="--c: var(--eating)"><i></i>mange</span>
+                    <span style="--c: var(--stopped)"><i></i>arrêté</span>
                 </div>
             </div>
-            <div class="grid" style="align-content: start">
+            <div class="stack">
                 <div class="card">
-                    <h2>Repas par seconde</h2>
-                    <svg id="spark" viewBox="0 0 400 110" preserveAspectRatio="none" style="width:100%;height:110px"></svg>
-                    <div class="small muted">60 dernières secondes</div>
+                    <div class="card-head"><h2>Repas par seconde</h2><span class="hint">60 dernières secondes</span></div>
+                    <div class="card-body"><svg id="spark" class="spark" viewBox="0 0 400 120" preserveAspectRatio="none"></svg></div>
                 </div>
                 <div class="card">
-                    <h2>Exclusion mutuelle</h2>
-                    <div id="conflicts"></div>
+                    <div class="card-head"><h2>Répartition des états</h2><span class="hint">en ce moment</span></div>
+                    <div class="card-body"><div class="states" id="states"></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-head"><h2>Exclusion mutuelle</h2></div>
+                    <div class="card-body" id="conflicts"></div>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- ================================================================ PHILOSOPHES -->
-    <section class="tab" id="tab-philosophers">
-        <div class="card">
-            <h2>Philosophes</h2>
-            <p class="small muted" style="margin-top:-4px">Arrêter un philosophe simule une panne propre : il termine son repas, rend ses fourchettes et cesse de manger,
-                mais reste joignable (en mode TOKEN, il continue de céder ses jetons).</p>
-            <div class="scroll">
-                <table>
-                    <thead><tr><th>#</th><th>État</th><th>Repas</th><th>Part</th><th>Fourchettes</th><th>Horloge</th><th>Service</th><th></th></tr></thead>
-                    <tbody id="philosophers"></tbody>
-                </table>
+    <section class="view" id="tab-philosophers" role="tabpanel">
+        <div class="stack">
+            <div class="card intro">
+                <div class="ico"><svg><use href="#i-users"/></svg></div>
+                <div>
+                    <h2>Simuler une panne</h2>
+                    <p>« Arrêter » interrompt la boucle d'un philosophe : il rend ses fourchettes et cesse de manger, mais son service
+                        reste joignable — en mode TOKEN, il continue de céder ses jetons à ceux qui les demandent.</p>
+                </div>
+            </div>
+            <div class="card flush">
+                <div class="card-body table-scroll">
+                    <table>
+                        <thead><tr><th>Philosophe</th><th>État</th><th class="right">Repas</th><th>Part des repas</th><th>Fourchettes</th><th class="right">Horloge</th><th>Service</th><th class="right"></th></tr></thead>
+                        <tbody id="philosophers"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </section>
 
     <!-- ================================================================ JETONS -->
-    <section class="tab" id="tab-tokens">
-        <div class="card" style="margin-bottom:18px">
-            <h2>Protocole à jetons (partie 3.3)</h2>
-            <div class="small muted">Chaque fourchette a un jeton unique. Les demandes sont servies dans l'ordre (horloge de Lamport, puis identifiant).
-                Cet onglet n'a de contenu qu'en mode <code>TOKEN</code>.</div>
+    <section class="view" id="tab-tokens" role="tabpanel">
+        <div class="stack">
+            <div class="card intro">
+                <div class="ico"><svg><use href="#i-key"/></svg></div>
+                <div>
+                    <h2>Protocole à jetons — partie 3.3</h2>
+                    <p>Chaque fourchette a un jeton unique, que seul son détenteur peut utiliser. Les demandes sont servies dans l'ordre
+                        de leur horloge de Lamport, puis de l'identifiant : la première de chaque file est surlignée.</p>
+                </div>
+            </div>
+            <div class="token-grid" id="tokens"></div>
         </div>
-        <div class="grid tokens" id="tokens"></div>
     </section>
 
     <!-- ================================================================ HISTORIQUE -->
-    <section class="tab" id="tab-history">
-        <div class="card">
-            <h2>Historique, trié par horloge de Lamport</h2>
-            <div class="scroll">
+    <section class="view" id="tab-history" role="tabpanel">
+        <div class="card flush">
+            <div class="card-head"><h2>Historique</h2><span class="hint">200 derniers événements, triés par horloge de Lamport</span></div>
+            <div class="card-body table-scroll">
                 <table>
-                    <thead><tr><th>Lamport</th><th>Philosophe</th><th>Événement</th><th>Fourchettes</th><th>Reçu n°</th><th>Heure</th></tr></thead>
+                    <thead><tr><th>Lamport</th><th>Philosophe</th><th>Événement</th><th>Fourchettes</th><th class="right">Reçu n°</th><th>Heure</th></tr></thead>
                     <tbody id="events"></tbody>
                 </table>
             </div>
@@ -177,42 +511,67 @@
     </section>
 
     <!-- ================================================================ CALCUL DISTRIBUÉ -->
-    <section class="tab" id="tab-graph">
-        <div class="card" style="margin-bottom:18px">
-            <h2>Master–Worker sur un graphe (partie 5)</h2>
-            <p class="small muted" style="margin-top:-4px">P0 joue le Master et découpe un graphe aléatoire entre les autres philosophes (Workers).
-                Arrêtez un Worker pendant un calcul pour voir le Master relancer sa tâche ailleurs.</p>
-            <form class="job" id="job">
-                <label>Calcul
-                    <select name="kind"><option value="degrees">Degré de chaque nœud</option><option value="reachability">Accessibilité s → t</option></select>
-                </label>
-                <label>Nœuds <input name="nodes" type="number" min="2" value="100000"></label>
-                <label>Arcs <input name="edges" type="number" min="0" value="500000"></label>
-                <label>Graine <input name="seed" type="number" value="1"></label>
-                <label>Workers <input name="workers" type="number" min="1" value="4"></label>
-                <label class="reach">Source s <input name="source" type="number" min="0" value="0"></label>
-                <label class="reach">Cible t <input name="target" type="number" min="0" value="99999"></label>
-                <button class="btn primary" type="submit" id="run">Lancer</button>
-                <button class="btn" type="button" id="sweep">Comparer 1 → N Workers</button>
-            </form>
-            <div id="job-error"></div>
-            <div class="grid results" id="job-result"></div>
-        </div>
-        <div class="card">
-            <h2>Temps de calcul selon le nombre de Workers</h2>
-            <svg id="bars" viewBox="0 0 640 260" style="width:100%;height:260px"></svg>
-            <div class="small muted" id="bars-note">Lancez « Comparer » pour mesurer. La barre grise est le calcul séquentiel sur une seule machine.</div>
+    <section class="view" id="tab-graph" role="tabpanel">
+        <div class="stack">
+            <div class="card intro">
+                <div class="ico"><svg><use href="#i-graph"/></svg></div>
+                <div>
+                    <h2>Master–Worker sur un graphe — partie 5</h2>
+                    <p>P0 joue le Master : il découpe un graphe aléatoire entre les autres philosophes (les Workers) et rassemble leurs résultats.
+                        Arrêtez un philosophe dans l'onglet « Philosophes » pendant un calcul : le Master relance sa tâche ailleurs.</p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-head"><h2>Lancer un calcul</h2></div>
+                <div class="card-body">
+                    <form id="job">
+                        <div class="job">
+                            <label class="field wide"><span>Calcul</span>
+                                <select name="kind"><option value="degrees">Degré de chaque nœud</option><option value="reachability">Accessibilité s → t</option></select>
+                            </label>
+                            <label class="field"><span>Nœuds</span><input name="nodes" type="number" min="2" value="100000" inputmode="numeric"></label>
+                            <label class="field"><span>Arcs</span><input name="edges" type="number" min="0" value="500000" inputmode="numeric"></label>
+                            <label class="field"><span>Graine</span><input name="seed" type="number" value="1" inputmode="numeric"></label>
+                            <label class="field"><span>Workers</span><input name="workers" type="number" min="1" value="4" inputmode="numeric"></label>
+                            <span></span>
+                            <label class="field reach"><span>Source s</span><input name="source" type="number" min="0" value="0" inputmode="numeric"></label>
+                            <label class="field reach"><span>Cible t</span><input name="target" type="number" min="0" value="99999" inputmode="numeric"></label>
+                        </div>
+                        <div class="actions">
+                            <button class="btn primary" type="submit" id="run"><svg><use href="#i-play"/></svg>Lancer</button>
+                            <button class="btn" type="button" id="sweep"><svg><use href="#i-bars"/></svg>Comparer 1 → N Workers</button>
+                        </div>
+                    </form>
+                    <div id="job-progress"></div>
+                    <div class="results" id="job-result"></div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-head"><h2>Temps selon le nombre de Workers</h2><span class="hint" id="bars-note">lancez « Comparer » pour mesurer</span></div>
+                <div class="card-body"><svg id="bars" viewBox="0 0 640 280">
+                    <rect x="1" y="1" width="638" height="278" rx="14" fill="none" stroke="var(--line)" stroke-dasharray="4 6"/>
+                    <text x="320" y="132" text-anchor="middle" font-size="15" font-weight="650" fill="var(--text-2)">Pas encore de mesure</text>
+                    <text x="320" y="156" text-anchor="middle" font-size="13" fill="var(--muted)">« Comparer 1 → N Workers » lance le même calcul avec 1, 2, 3 puis 4 Workers</text>
+                </svg></div>
+            </div>
         </div>
     </section>
 </main>
 
+<footer>Projet de développement web — CY Tech · moniteur mis à jour chaque seconde</footer>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
 <script>
 const $ = id => document.getElementById(id);
-const labels = { THINKING: 'pense', HUNGRY: 'a faim', EATING: 'mange', UNKNOWN: '—', STOPPED: 'arrêté' };
-const colors = { THINKING: 'var(--thinking)', HUNGRY: 'var(--hungry)', EATING: 'var(--eating)', UNKNOWN: 'var(--unknown)', STOPPED: 'var(--stopped)' };
+const labels = { THINKING: 'pense', HUNGRY: 'a faim', EATING: 'mange', UNKNOWN: 'inconnu', STOPPED: 'arrêté', DONE: 'a fini' };
 const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString('fr-FR') : '—';
-const forks = list => (list && list.length) ? list.map(f => `<span class="fork">F${f}</span>`).join('') : '<span class="muted">—</span>';
+const fmtInt = n => Number(n).toLocaleString('fr-FR');
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const icon = (name, cls = '') => `<svg class="${cls}"><use href="#i-${name}"/></svg>`;
+const forks = (list, hot) => (list && list.length)
+    ? list.map(f => `<span class="fork${hot ? ' hot' : ''}">F${f}</span>`).join('') : '<span class="none">—</span>';
+const stateBadge = st => `<span class="state ${st}">${labels[st] || st}</span>`;
+
 async function json(url, options) {
     const r = await fetch(url, options);
     const body = await r.text();
@@ -220,133 +579,210 @@ async function json(url, options) {
     if (!r.ok) throw new Error(data.detail || `erreur ${r.status}`);
     return data;
 }
+function toast(message, kind = '') {
+    const t = document.createElement('div');
+    t.className = `toast ${kind}`;
+    t.textContent = message;
+    $('toasts').append(t);
+    setTimeout(() => t.remove(), 4500);
+}
+
+// ------------------------------------------------------------------ thème clair / sombre
+const root = document.documentElement;
+function systemDark() { return matchMedia('(prefers-color-scheme: dark)').matches; }
+function applyTheme(t) {
+    if (t) root.dataset.theme = t; else delete root.dataset.theme;
+    const dark = t ? t === 'dark' : systemDark();
+    $('theme').innerHTML = icon(dark ? 'sun' : 'moon');
+}
+const urlTheme = new URLSearchParams(location.search).get('theme');
+try { applyTheme(['light', 'dark'].includes(urlTheme) ? urlTheme : localStorage.getItem('theme')); } catch { applyTheme(null); }
+$('theme').addEventListener('click', () => {
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : systemDark();
+    const next = dark ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem('theme', next); } catch { /* stockage indisponible : thème non mémorisé */ }
+    if (state) renderOverview();
+});
 
 // ------------------------------------------------------------------ onglets
 let activeTab = 'overview';
-document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => {
-    document.querySelectorAll('nav button').forEach(x => x.setAttribute('aria-selected', x === b));
-    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + b.dataset.tab));
-    activeTab = b.dataset.tab;
-    refresh();
-}));
+function showTab(name, push) {
+    const b = document.querySelector(`.tab-btn[data-tab="${name}"]`);
+    if (!b) return;
+    document.querySelectorAll('.tab-btn').forEach(x => x.setAttribute('aria-selected', x === b));
+    document.querySelectorAll('.view').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
+    activeTab = name;
+    if (push) history_.replaceState(null, '', name === 'overview' ? location.pathname : '#' + name);
+}
+const history_ = window.history;   // « history » désigne plus bas l'historique des repas
+document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => { showTab(b.dataset.tab, true); refresh(); }));
+showTab(location.hash.slice(1) || 'overview', false);   // lien direct vers un onglet : /#tokens, /#graph…
 
 // ------------------------------------------------------------------ état partagé
-let state = null, cluster = [], history = [];      // history : [temps, repas cumulés]
+let state = null, cluster = [];
+// Débit et courbe : calculés à partir de l'historique du moniteur (heures de réception des DONE), donc justes dès
+// l'ouverture de la page. « now » = dernier événement reçu par le serveur : insensible au décalage d'horloge.
+let mealLog = { now: 0, times: [] };
+const nodeOf = id => cluster.find(c => c.id === id);
+const isStopped = id => { const c = nodeOf(id); return !!c && (!c.reachable || (c.status && c.status.state === 'STOPPED')); };
+const shownState = p => isStopped(p.id) ? 'STOPPED' : p.state;
 
+// ------------------------------------------------------------------ vue d'ensemble
 function drawTable(philosophers) {
-    const n = philosophers.length, cx = 220, cy = 220, r = 158;
-    const pos = i => { const a = 2 * Math.PI * i / n - Math.PI / 2; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
-    const forkPos = f => { const a = 2 * Math.PI * f / n - Math.PI / 2 - Math.PI / n; return [cx + 92 * Math.cos(a), cy + 92 * Math.sin(a)]; };
-    const stopped = id => { const c = cluster.find(x => x.id === id); return c && (!c.reachable || (c.status && c.status.state === 'STOPPED')); };
-    let svg = `<circle cx="${cx}" cy="${cy}" r="112" fill="var(--table)" stroke="var(--table-edge)" stroke-width="2"/>`;
-    // liens philosophe → fourchettes tenues
+    const n = philosophers.length, cx = 220, cy = 220, R = 170, forkR = 104;
+    const angle = i => 2 * Math.PI * i / n - Math.PI / 2;
+    const pos = i => [cx + R * Math.cos(angle(i)), cy + R * Math.sin(angle(i))];
+    const forkPos = f => { const a = angle(f) - Math.PI / n; return [cx + forkR * Math.cos(a), cy + forkR * Math.sin(a)]; };
+    let svg = `<defs>
+        <radialGradient id="wood" cx="45%" cy="40%" r="70%"><stop offset="0%" stop-color="var(--wood)"/><stop offset="100%" stop-color="var(--wood-2)"/></radialGradient>
+        <filter id="lift" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity=".18"/></filter></defs>
+        <circle cx="${cx}" cy="${cy}" r="132" fill="url(#wood)" stroke="var(--wood-edge)" stroke-width="2"/>
+        <circle cx="${cx}" cy="${cy}" r="58" fill="none" stroke="var(--wood-edge)" stroke-opacity=".5" stroke-dasharray="2 6"/>`;
     philosophers.forEach(p => {
         if (p.state !== 'EATING') return;
         const [x, y] = pos(p.id);
-        (p.forks || []).forEach(f => { const [fx, fy] = forkPos(f);
-            svg += `<line x1="${x}" y1="${y}" x2="${fx}" y2="${fy}" stroke="var(--eating)" stroke-width="3" stroke-linecap="round" opacity=".55"/>`; });
+        (p.forks || []).forEach(f => { const [fx, fy] = forkPos(f); svg += `<line class="fork-link" x1="${x}" y1="${y}" x2="${fx}" y2="${fy}"/>`; });
     });
     for (let f = 0; f < n; f++) {
         const [fx, fy] = forkPos(f);
         const used = philosophers.some(p => p.state === 'EATING' && (p.forks || []).includes(f));
-        svg += `<g><circle cx="${fx}" cy="${fy}" r="14" fill="${used ? 'var(--eating)' : 'var(--panel)'}" stroke="var(--table-edge)"/>
-                <text x="${fx}" y="${fy + 4}" text-anchor="middle" font-size="11" font-weight="700" fill="${used ? '#fff' : 'var(--muted)'}">F${f}</text></g>`;
+        svg += `<g><circle cx="${fx}" cy="${fy}" r="15" fill="${used ? 'var(--eating)' : 'var(--surface)'}" stroke="${used ? 'var(--eating)' : 'var(--wood-edge)'}" stroke-width="1.5"/>
+                <text x="${fx}" y="${fy + 4}" text-anchor="middle" font-size="11" font-weight="800" font-family="var(--mono)" fill="${used ? '#fff' : 'var(--muted)'}">F${f}</text></g>`;
     }
     philosophers.forEach(p => {
-        const [x, y] = pos(p.id);
-        const st = stopped(p.id) ? 'STOPPED' : p.state;
-        svg += `<g><circle cx="${x}" cy="${y}" r="34" fill="${colors[st]}" stroke="var(--panel)" stroke-width="4"/>
-                <text x="${x}" y="${y - 3}" text-anchor="middle" fill="#fff" font-weight="800" font-size="15">P${p.id}</text>
-                <text x="${x}" y="${y + 13}" text-anchor="middle" fill="#fff" font-size="11">${labels[st]} · ${p.meals}</text></g>`;
+        const [x, y] = pos(p.id), st = shownState(p);
+        svg += `<g class="seat ${st}" filter="url(#lift)">
+                <circle class="seat-halo" cx="${x}" cy="${y}" r="44" fill="var(--eating)" opacity="0"/>
+                <circle cx="${x}" cy="${y}" r="35" fill="var(--c)" stroke="var(--surface)" stroke-width="4"/>
+                <text x="${x}" y="${y - 2}" text-anchor="middle" fill="#fff" font-weight="800" font-size="16">P${p.id}</text>
+                <text x="${x}" y="${y + 14}" text-anchor="middle" fill="#fff" fill-opacity=".92" font-size="11" font-weight="600">${labels[st]} · ${p.meals}</text></g>`;
     });
     $('table').innerHTML = svg;
 }
 
+async function loadMealTimes() {
+    const events = await json('/api/events?limit=1500');
+    if (!events.length) { mealLog = { now: 0, times: [] }; return; }
+    const at = e => new Date(e.receivedAt).getTime();
+    const now = Math.max(...events.map(at));
+    mealLog = { now, times: events.filter(e => e.event.type === 'DONE').map(at).filter(t => now - t <= 60000) };
+}
+
 function drawSpark() {
-    const now = Date.now(), pts = history.filter(([t]) => now - t <= 60000);
-    if (pts.length < 2) { $('spark').innerHTML = ''; return; }
-    const rates = [];
-    for (let i = 1; i < pts.length; i++) {
-        const dt = (pts[i][0] - pts[i - 1][0]) / 1000;
-        rates.push([pts[i][0], dt > 0 ? (pts[i][1] - pts[i - 1][1]) / dt : 0]);
-    }
-    const max = Math.max(1, ...rates.map(r => r[1]));
-    const x = t => 400 - (now - t) / 60000 * 400, y = v => 100 - v / max * 88;
-    const line = rates.map(([t, v], i) => `${i ? 'L' : 'M'}${x(t).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
-    $('spark').innerHTML = `<path d="${line} L${x(rates.at(-1)[0])},104 L${x(rates[0][0])},104 Z" fill="var(--accent-soft)"/>
-        <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.2" vector-effect="non-scaling-stroke"/>
-        <text x="4" y="12" font-size="11" fill="var(--muted)">max ${max.toFixed(1)}/s</text>`;
+    const BUCKET = 5000, N = 12;                       // 12 tranches de 5 s = 60 s
+    if (!mealLog.now) { $('spark').innerHTML = `<text x="200" y="64" text-anchor="middle" font-size="13" fill="var(--muted)">en attente des premiers repas…</text>`; return; }
+    const counts = new Array(N).fill(0);
+    mealLog.times.forEach(t => { const k = N - 1 - Math.floor((mealLog.now - t) / BUCKET); if (k >= 0 && k < N) counts[k]++; });
+    const rates = counts.map(c => c / (BUCKET / 1000));
+    const max = Math.max(1, ...rates);
+    const x = i => i / (N - 1) * 400, y = v => 112 - v / max * 96;
+    const line = rates.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    $('spark').innerHTML = `<defs><linearGradient id="sg" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="var(--accent)" stop-opacity=".28"/><stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+        ${[0.25, 0.5, 0.75].map(k => `<line x1="0" x2="400" y1="${y(max * k)}" y2="${y(max * k)}" stroke="var(--line)" stroke-dasharray="3 5" vector-effect="non-scaling-stroke"/>`).join('')}
+        <path d="${line} L400,116 L0,116 Z" fill="url(#sg)"/>
+        <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+        <text x="6" y="14" font-size="11" fill="var(--muted)">max ${max.toFixed(1)} repas / s</text>`;
 }
 
 function renderOverview() {
     const ps = state.philosophers, meals = ps.map(p => p.meals), total = meals.reduce((a, b) => a + b, 0);
-    $('k-meals').textContent = total.toLocaleString('fr-FR');
-    $('k-events').textContent = state.totalEvents.toLocaleString('fr-FR');
-    $('k-stale').textContent = `${state.staleEvents} arrivés hors ordre`;
+    $('k-meals').textContent = fmtInt(total);
+    $('k-events').textContent = fmtInt(state.totalEvents);
+    $('k-stale').textContent = `${fmtInt(state.staleEvents)} arrivé(s) hors ordre`;
     $('k-conflicts').textContent = state.conflicts.length;
     $('k-conflicts-card').classList.toggle('bad', state.conflicts.length > 0);
     $('k-conflicts-card').classList.toggle('good', state.conflicts.length === 0);
     const max = Math.max(...meals), min = Math.min(...meals);
     $('k-fair').textContent = max > 0 ? (min / max).toFixed(2) : '—';
-    const recent = history.filter(([t]) => Date.now() - t <= 30000);
-    const rate = recent.length > 1 ? (recent.at(-1)[1] - recent[0][1]) / ((recent.at(-1)[0] - recent[0][0]) / 60000) : 0;
-    $('k-rate').textContent = Math.round(rate).toLocaleString('fr-FR');
+    const rate = mealLog.times.filter(t => mealLog.now - t <= 30000).length * 2;      // repas sur 30 s × 2 = par minute
+    $('k-rate').textContent = fmtInt(rate);
     drawTable(ps);
     drawSpark();
+    $('states').innerHTML = ['THINKING', 'HUNGRY', 'EATING', 'STOPPED'].map(st => {
+        const who = ps.filter(p => shownState(p) === st || (st === 'STOPPED' && shownState(p) === 'UNKNOWN'));
+        return `<div class="state-tile ${st}"><div class="n">${who.length}</div><div class="t">${labels[st]}</div>
+                <div class="who-list">${who.map(p => 'P' + p.id).join(' ') || '&nbsp;'}</div></div>`;
+    }).join('');
     $('conflicts').innerHTML = state.conflicts.length === 0
-        ? '<div class="ok-box">Aucune fourchette n\'a été utilisée par deux philosophes à la fois.</div>'
-        : `<div class="bad-box">${state.conflicts.length} violation(s) : deux philosophes ont mangé avec la même fourchette.</div>
-           <table style="margin-top:10px"><thead><tr><th>Philosophes</th><th>Fourchette</th><th>Heure</th></tr></thead><tbody>${
-           state.conflicts.slice(-8).reverse().map(c => `<tr><td>P${c.philosopher} &amp; P${c.other}</td><td><span class="fork">F${c.sharedFork}</span></td><td>${fmtTime(c.detectedAt)}</td></tr>`).join('')}</tbody></table>`;
+        ? `<div class="alert ok">${icon('check')}<div><strong>Aucun conflit</strong><span class="detail">Aucune fourchette n'a été utilisée par deux philosophes à la fois.</span></div></div>`
+        : `<div class="alert bad">${icon('alert')}<div><strong>${state.conflicts.length} violation(s) de l'exclusion mutuelle</strong>
+               <span class="detail">Deux philosophes ont mangé avec la même fourchette.</span></div></div>
+           <table style="margin-top:12px"><thead><tr><th>Philosophes</th><th>Fourchette</th><th>Heure</th></tr></thead><tbody>${
+           state.conflicts.slice(-8).reverse().map(c => `<tr><td><b>P${c.philosopher}</b> et <b>P${c.other}</b></td><td><span class="fork">F${c.sharedFork}</span></td><td class="muted">${fmtTime(c.detectedAt)}</td></tr>`).join('')}</tbody></table>`;
 }
 
+// ------------------------------------------------------------------ philosophes
 function renderPhilosophers() {
     const total = state.philosophers.reduce((a, p) => a + p.meals, 0);
+    const maxMeals = Math.max(1, ...state.philosophers.map(p => p.meals));
     $('philosophers').innerHTML = state.philosophers.map(p => {
-        const c = cluster.find(x => x.id === p.id) || {};
-        const s = c.status || {};
+        const c = nodeOf(p.id) || {}, s = c.status || {}, st = shownState(p);
         const running = c.reachable && s.state !== 'STOPPED';
-        const share = total ? (100 * p.meals / total).toFixed(0) + ' %' : '—';
-        return `<tr><td><b>P${p.id}</b></td><td><span class="pill ${p.state}">${labels[p.state]}</span></td>
-            <td>${p.meals}</td><td>${share}</td><td>${forks(p.forks)}</td><td>${p.lastLamport}</td>
-            <td>${c.reachable === undefined ? '<span class="muted">—</span>' : c.reachable
-                ? `<span class="small">${esc(s.mode || '')} · ${s.state === 'STOPPED' ? 'arrêté' : 'actif'}</span>` : '<span class="small" style="color:var(--danger)">injoignable</span>'}</td>
-            <td>${c.reachable ? `<button class="btn ${running ? 'danger' : ''}" data-act="${running ? 'stop' : 'start'}" data-id="${p.id}">${running ? 'Arrêter' : 'Redémarrer'}</button>` : ''}</td></tr>`;
+        const share = total ? Math.round(100 * p.meals / total) : 0;
+        const svc = c.reachable === undefined ? '<span class="none">—</span>'
+            : !c.reachable ? '<span class="svc off">injoignable</span>'
+            : `<span class="svc ${running ? '' : 'stopped'}">${esc(s.mode || '')} · ${running ? 'actif' : 'arrêté'}</span>`;
+        const action = !c.reachable ? '' : running
+            ? `<button class="btn sm quiet-danger" data-act="stop" data-id="${p.id}">${icon('stop')}Arrêter</button>`
+            : `<button class="btn sm success" data-act="start" data-id="${p.id}">${icon('play')}Redémarrer</button>`;
+        return `<tr>
+            <td><span class="who ${st}"><span class="avatar">P${p.id}</span>Philosophe ${p.id}</span></td>
+            <td>${stateBadge(st)}</td>
+            <td class="right"><b>${fmtInt(p.meals)}</b></td>
+            <td><div class="share"><div class="bar"><i style="width:${100 * p.meals / maxMeals}%"></i></div><span class="muted small">${share} %</span></div></td>
+            <td>${forks(p.forks, p.state === 'EATING')}</td>
+            <td class="right muted">${p.lastLamport}</td>
+            <td>${svc}</td>
+            <td class="right">${action}</td></tr>`;
     }).join('');
 }
 $('philosophers').addEventListener('click', async e => {
     const b = e.target.closest('button[data-act]');
     if (!b) return;
     b.disabled = true;
-    try { await json(`/api/cluster/${b.dataset.id}/${b.dataset.act}`, { method: 'POST' }); } catch (err) { alert(err.message); }
+    const verb = b.dataset.act === 'stop' ? 'arrêté' : 'redémarré';
+    try {
+        await json(`/api/cluster/${b.dataset.id}/${b.dataset.act}`, { method: 'POST' });
+        toast(`P${b.dataset.id} ${verb}.`, 'ok');
+    } catch (err) { toast(`P${b.dataset.id} : ${err.message}`, 'bad'); }
     await refreshCluster(); renderPhilosophers();
 });
 
+// ------------------------------------------------------------------ jetons
+const emptyState = (ico, text) => `<div class="card empty" style="grid-column:1/-1">${icon(ico)}<div>${text}</div></div>`;
 async function renderTokens() {
-    const reachable = cluster.filter(c => c.reachable && c.status && c.status.mode === 'TOKEN');
-    if (!reachable.length) { $('tokens').innerHTML = '<div class="card empty">Aucun philosophe en mode TOKEN. Lancez <code>./scripts/run-local.sh TOKEN</code>.</div>'; return; }
-    const states = await Promise.all(reachable.map(c => json(`/api/cluster/${c.id}/token-state`).catch(() => null)));
+    const nodes = cluster.filter(c => c.reachable && c.status && c.status.mode === 'TOKEN');
+    if (!nodes.length) { $('tokens').innerHTML = emptyState('key', 'Aucun philosophe en mode TOKEN.<br>Lancez <code>./scripts/run-local.sh TOKEN</code>.'); return; }
+    const states = await Promise.all(nodes.map(c => json(`/api/cluster/${c.id}/token-state`).catch(() => null)));
     $('tokens').innerHTML = states.map((t, i) => {
-        if (!t) return `<div class="card"><h2>P${reachable[i].id}</h2><div class="muted">état indisponible</div></div>`;
+        if (!t) return `<div class="card token-card"><div class="card-head"><h2>P${nodes[i].id}</h2></div><div class="card-body muted">état indisponible</div></div>`;
+        const st = t.eating ? 'EATING' : t.current ? 'HUNGRY' : 'THINKING';
         const transit = Object.entries(t.inTransit || {});
-        return `<div class="card"><h2>P${t.id} · horloge ${t.lamport}</h2>
-            <div class="small muted">Jetons détenus</div><div style="margin:4px 0 10px">${forks(t.heldTokens)}</div>
-            ${transit.length ? `<div class="small muted">En transit</div><div style="margin:4px 0 10px">${transit.map(([f, to]) => `<span class="fork">F${f} → P${to}</span>`).join('')}</div>` : ''}
-            <div class="small muted">Demande en cours</div><div style="margin:4px 0 10px">${t.current
-                ? `${forks(t.current.forks)} <span class="small muted">h=${t.current.lamport}${t.eating ? ' · mange' : ' · attend'}</span>` : '<span class="muted">aucune</span>'}</div>
-            <div class="small muted">File d'attente vue par P${t.id}</div>
-            <div style="margin-top:4px">${(t.queue || []).length ? t.queue.map(q => `<div class="small">(${q.lamport}, P${q.requester}) → ${forks(q.forks)}</div>`).join('') : '<span class="muted">vide</span>'}</div>
-            <div class="small muted" style="margin-top:10px">${t.stats.requestsSent} demandes · ${t.stats.tokensSent} jetons envoyés · ${t.stats.duplicatesIgnored} doublons ignorés</div>
-        </div>`;
+        const queue = (t.queue || []).map((q, k) => `<div class="queue-row${k === 0 ? ' first' : ''}"><span class="rank">${k + 1}</span>
+              <b>P${q.requester}</b><span class="ts">h=${q.lamport}</span><span style="margin-left:auto">${forks(q.forks)}</span></div>`).join('');
+        return `<div class="card token-card">
+            <div class="card-head"><h2>P${t.id}</h2>${stateBadge(st)}</div>
+            <div class="card-body"><dl>
+                <div><dt>Jetons détenus</dt><dd>${forks(t.heldTokens, t.eating)}</dd></div>
+                ${transit.length ? `<div><dt>En transit</dt><dd>${transit.map(([f, to]) => `<span class="fork">F${f} → P${to}</span>`).join('')}</dd></div>` : ''}
+                <div><dt>Demande en cours</dt><dd>${t.current ? `${forks(t.current.forks)} <span class="muted small">h=${t.current.lamport}</span>` : '<span class="none">aucune</span>'}</dd></div>
+                <div><dt>File d'attente vue par P${t.id}</dt><dd class="queue">${queue || '<span class="none">vide</span>'}</dd></div>
+            </dl>
+            <div class="stats" style="margin-top:14px"><span>horloge <b>${t.lamport}</b></span><span><b>${fmtInt(t.stats.requestsSent)}</b> demandes</span>
+                <span><b>${fmtInt(t.stats.tokensSent)}</b> jetons envoyés</span><span><b>${fmtInt(t.stats.duplicatesIgnored)}</b> doublons ignorés</span></div>
+            </div></div>`;
     }).join('');
 }
 
+// ------------------------------------------------------------------ historique
 async function renderHistory() {
     const events = await json('/api/events?limit=200');
     $('events').innerHTML = events.slice().reverse().map(e =>
-        `<tr><td>${e.event.lamport}</td><td>P${e.event.philosopherId}</td><td><span class="pill ${e.event.type === 'DONE' ? 'THINKING' : e.event.type}">${e.event.type}</span></td>
-         <td>${forks(e.event.forks)}</td><td>${e.sequence}</td><td>${fmtTime(e.receivedAt)}</td></tr>`).join('')
-        || '<tr><td colspan="6" class="empty">aucun événement</td></tr>';
+        `<tr><td><b>${e.event.lamport}</b></td><td>P${e.event.philosopherId}</td><td>${stateBadge(e.event.type)}</td>
+         <td>${forks(e.event.forks, e.event.type === 'EATING')}</td><td class="right muted">${e.sequence}</td><td class="muted">${fmtTime(e.receivedAt)}</td></tr>`).join('')
+        || `<tr><td colspan="6">${emptyState('inbox', 'Aucun événement pour l\'instant.').replace('card ', '')}</td></tr>`;
 }
 
 // ------------------------------------------------------------------ calcul distribué
@@ -359,29 +795,30 @@ function jobBody(workers) {
     if (form.kind.value === 'reachability') { body.source = v('source'); body.target = v('target'); }
     return body;
 }
-const tile = (label, value, cls = '') => `<div class="card kpi ${cls}"><div class="label">${label}</div><div class="value" style="font-size:24px">${value}</div></div>`;
+const result = (label, value, cls = '') => `<div class="result ${cls}"><div class="label">${label}</div><div class="value">${value}</div></div>`;
+const busy = on => { $('job-progress').innerHTML = on ? '<div class="progress"><i></i></div>' : ''; $('run').disabled = on; $('sweep').disabled = on; };
 async function runJob(workers) {
     return json(`/api/cluster/master/${form.kind.value}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(jobBody(workers)) });
 }
 form.addEventListener('submit', async e => {
     e.preventDefault();
-    $('run').disabled = true; $('job-error').innerHTML = ''; $('job-result').innerHTML = '<div class="muted">calcul en cours…</div>';
+    busy(true); $('job-result').innerHTML = '';
     try {
         const r = await runJob();
         $('job-result').innerHTML = [
-            r.reachable !== undefined ? tile('t accessible depuis s', r.reachable ? 'oui' : 'non') : tile('Degré maximal', r.maxDegree),
-            tile('Résultat exact', r.correct ? 'oui' : 'NON', r.correct ? 'good' : 'bad'),
-            tile('Temps distribué', r.distributedMs + ' ms'), tile('Temps séquentiel', r.sequentialMs + ' ms'),
-            tile('Workers', r.workers.map(w => 'P' + w).join(' ')),
-            r.levels !== undefined ? tile('Niveaux du parcours', r.levels) : tile('Somme des degrés', r.sumOfDegrees.toLocaleString('fr-FR')),
-            tile('Tâches relancées', r.reassigned, r.reassigned ? 'bad' : ''), tile('Copies spéculatives', r.speculative)
+            r.reachable !== undefined ? result('t accessible depuis s', r.reachable ? 'oui' : 'non') : result('Degré maximal', fmtInt(r.maxDegree)),
+            result('Résultat exact', r.correct ? 'oui' : 'NON', r.correct ? 'good' : 'bad'),
+            result('Temps distribué', `${fmtInt(r.distributedMs)} ms`), result('Temps séquentiel', `${fmtInt(r.sequentialMs)} ms`),
+            result('Workers', r.workers.map(w => 'P' + w).join(' ')),
+            r.levels !== undefined ? result('Niveaux du parcours', r.levels) : result('Somme des degrés', fmtInt(r.sumOfDegrees)),
+            result('Tâches relancées', r.reassigned, r.reassigned ? 'warn' : ''), result('Copies spéculatives', r.speculative, r.speculative ? 'warn' : '')
         ].join('');
-    } catch (err) { $('job-result').innerHTML = ''; $('job-error').innerHTML = `<div class="bad-box" style="margin-top:14px">${esc(err.message)}</div>`; }
-    $('run').disabled = false;
+    } catch (err) { toast(err.message, 'bad'); }
+    busy(false);
 });
 $('sweep').addEventListener('click', async () => {
     const max = Math.max(1, cluster.filter(c => c.reachable && c.id !== 0).length);
-    $('sweep').disabled = true; $('bars-note').textContent = 'mesure en cours…';
+    busy(true); $('bars-note').textContent = 'mesure en cours…';
     const rows = [];
     try {
         for (let w = 1; w <= max; w++) {
@@ -389,25 +826,30 @@ $('sweep').addEventListener('click', async () => {
             for (let k = 0; k < 2; k++) { const r = await runJob(w); if (!best || r.distributedMs < best.distributedMs) best = r; }
             rows.push(best); drawBars(rows);
         }
-        $('bars-note').textContent = `Meilleur de 2 essais par configuration. Le calcul séquentiel prend ${rows[0].sequentialMs} ms : ici, transférer les données coûte plus cher que calculer.`;
-    } catch (err) { $('bars-note').textContent = err.message; }
-    $('sweep').disabled = false;
+        $('bars-note').textContent = `meilleur de 2 essais · ici, transférer les données coûte plus cher que calculer`;
+    } catch (err) { toast(err.message, 'bad'); $('bars-note').textContent = 'mesure interrompue'; }
+    busy(false);
 });
 function drawBars(rows) {
-    const W = 640, H = 260, pad = 44, bw = (W - pad * 2) / (rows.length + 1);
-    const max = Math.max(1, ...rows.map(r => r.distributedMs), rows[0].sequentialMs);
-    const y = v => H - 30 - v / max * (H - 60);
-    let svg = `<line x1="${pad}" y1="${H - 30}" x2="${W - 10}" y2="${H - 30}" stroke="var(--line)"/>`;
-    const seq = rows[0].sequentialMs;
-    svg += `<rect x="${pad + bw * .15}" y="${y(seq)}" width="${bw * .7}" height="${H - 30 - y(seq)}" rx="6" fill="var(--unknown)"/>
-            <text x="${pad + bw / 2}" y="${H - 12}" text-anchor="middle" font-size="12" fill="var(--muted)">séquentiel</text>
-            <text x="${pad + bw / 2}" y="${y(seq) - 6}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--text)">${seq} ms</text>`;
-    rows.forEach((r, i) => {
-        const x = pad + bw * (i + 1);
-        svg += `<rect x="${x + bw * .15}" y="${y(r.distributedMs)}" width="${bw * .7}" height="${H - 30 - y(r.distributedMs)}" rx="6" fill="var(--accent)"/>
-                <text x="${x + bw / 2}" y="${H - 12}" text-anchor="middle" font-size="12" fill="var(--muted)">${r.workers.length} worker${r.workers.length > 1 ? 's' : ''}</text>
-                <text x="${x + bw / 2}" y="${y(r.distributedMs) - 6}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--text)">${r.distributedMs} ms</text>`;
-    });
+    const W = 640, H = 280, left = 52, bottom = 34, top = 24;
+    const seq = rows[0].sequentialMs, all = [seq, ...rows.map(r => r.distributedMs)];
+    const max = Math.max(1, ...all) * 1.12, slot = (W - left - 10) / (rows.length + 1), bw = Math.min(64, slot * .58);
+    const y = v => H - bottom - v / max * (H - bottom - top);
+    let svg = '';
+    for (let k = 0; k <= 4; k++) {
+        const v = max / 1.12 * k / 4, yy = y(v);
+        svg += `<line x1="${left}" x2="${W - 6}" y1="${yy}" y2="${yy}" stroke="var(--line)" ${k ? 'stroke-dasharray="3 5"' : ''}/>
+                <text x="${left - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${Math.round(v)}</text>`;
+    }
+    svg += `<text x="12" y="${top - 8}" font-size="11" fill="var(--muted)">ms</text>`;
+    const bar = (i, v, label, fill) => {
+        const cx = left + slot * (i + .5), h = H - bottom - y(v);
+        return `<rect x="${cx - bw / 2}" y="${y(v)}" width="${bw}" height="${Math.max(h, 1)}" rx="7" fill="${fill}"/>
+                <text x="${cx}" y="${y(v) - 7}" text-anchor="middle" font-size="12" font-weight="750" fill="var(--text)">${fmtInt(v)}</text>
+                <text x="${cx}" y="${H - 12}" text-anchor="middle" font-size="12" fill="var(--muted)">${label}</text>`;
+    };
+    svg += bar(0, seq, 'séquentiel', 'var(--stopped)');
+    rows.forEach((r, i) => { svg += bar(i + 1, r.distributedMs, `${r.workers.length} worker${r.workers.length > 1 ? 's' : ''}`, 'var(--accent)'); });
     $('bars').innerHTML = svg;
 }
 
@@ -419,22 +861,31 @@ async function refreshCluster() {
 }
 let tick = 0;
 async function refresh() {
+    // 1. données : seul un échec réseau signifie « moniteur injoignable »
     try {
         state = await json('/api/state');
-        history.push([Date.now(), state.philosophers.reduce((a, p) => a + p.meals, 0)]);
-        history = history.filter(([t]) => Date.now() - t <= 65000);
+        if (activeTab === 'overview') await loadMealTimes();
         if (tick++ % 2 === 0 || activeTab === 'philosophers' || activeTab === 'tokens') await refreshCluster();
-        $('meta').textContent = `${state.philosopherCount} philosophes · ${cluster.filter(c => c.reachable).length} joignables`;
-        $('live').className = 'badge live'; $('live').textContent = 'en direct';
+    } catch (err) {
+        $('live').className = 'chip down'; $('live-text').textContent = 'moniteur injoignable';
+        return;
+    }
+    const up = cluster.filter(c => c.reachable).length;
+    $('meta').textContent = `${state.philosopherCount} philosophes · ${up} service${up > 1 ? 's' : ''} joignable${up > 1 ? 's' : ''}`;
+    $('live').className = 'chip live'; $('live-text').textContent = 'en direct';
+    // 2. affichage : une erreur ici est un bug de la page, pas une panne
+    try {
         renderOverview();
         if (activeTab === 'philosophers') renderPhilosophers();
         if (activeTab === 'tokens') await renderTokens();
         if (activeTab === 'history') await renderHistory();
     } catch (err) {
-        $('live').className = 'badge live off'; $('live').textContent = 'moniteur injoignable';
+        console.error('erreur d\'affichage', err);
     }
 }
-$('reset').addEventListener('click', async () => { await fetch('/api/events', { method: 'DELETE' }); history = []; refresh(); });
+$('reset').addEventListener('click', async () => {
+    await fetch('/api/events', { method: 'DELETE' }); mealLog = { now: 0, times: [] }; toast('Historique et conflits effacés.', 'ok'); refresh();
+});
 refresh();
 setInterval(refresh, 1000);
 </script>

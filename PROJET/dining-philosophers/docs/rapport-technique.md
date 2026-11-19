@@ -184,6 +184,49 @@ Le détail est dans `master-worker.md`.
 | `StatefulSet` Kubernetes | identifiant stable par pod (`PHILO_ID`) et DNS stable, indispensables au protocole à jetons |
 | Panneau de contrôle relayé par le moniteur | le navigateur ne parle qu'à une adresse, et on peut arrêter un philosophe en direct pour une démonstration |
 
+## 4 bis. Interface web
+
+Le moniteur sert un panneau de contrôle (<http://localhost:8080>). Il se met à jour chaque seconde et a cinq
+onglets. Le navigateur ne parle qu'au moniteur, qui relaie les commandes vers les philosophes
+(`/api/cluster`).
+
+**Vue d'ensemble.** La table en direct : chaque philosophe qui mange est relié en vert aux fourchettes qu'il
+tient. On y trouve aussi :
+- le débit et la courbe des repas par seconde, calculés à partir de l'historique du moniteur, donc justes
+  dès l'ouverture de la page ;
+- la répartition des états ;
+- le compteur de conflits, qui doit rester à 0 ;
+- l'équité, soit le rapport des repas du moins servi à ceux du plus servi.
+
+![Vue d'ensemble, thème clair](captures/vue-ensemble-clair.png)
+
+![Vue d'ensemble, thème sombre](captures/vue-ensemble-sombre.png)
+
+**Philosophes.** Pour chacun : son état, ses repas et sa part des repas, ses fourchettes, son horloge. Un
+bouton **Arrêter / Redémarrer** permet de simuler une panne pendant la démonstration.
+
+![Onglet Philosophes](captures/philosophes.png)
+
+**Jetons**, en mode TOKEN. Pour chaque philosophe : les jetons qu'il détient, sa demande en cours, et la file
+d'attente telle qu'il la voit, triée par horloge de Lamport. Toutes les files sont identiques : les
+philosophes voient le même ordre de priorité.
+
+![Onglet Jetons](captures/jetons.png)
+
+**Historique.** Les événements, triés par horloge de Lamport, avec les fourchettes de chaque repas.
+
+![Onglet Historique](captures/historique.png)
+
+**Calcul distribué.** Il lance la partie 5 depuis le navigateur, et compare 1 à N Workers sur un graphique.
+
+**Choix de conception.**
+- Une couleur par état (pense, a faim, mange, arrêté), la même partout : table, badges, tableaux.
+- Un thème clair et un thème sombre : celui du système par défaut, ou forcé avec le bouton ou `?theme=dark`.
+- Un lien direct vers chaque onglet (`/#tokens`).
+- Une mise en page adaptée au mobile, une navigation au clavier visible, et des animations coupées si
+  l'utilisateur le demande.
+- Une page sans aucune dépendance externe, servie directement par Spring Boot.
+
 ## 5. Difficultés rencontrées et solutions
 
 | # | Difficulté | Solution |

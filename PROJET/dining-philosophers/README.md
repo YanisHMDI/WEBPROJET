@@ -188,6 +188,8 @@ kubectl -n philosophes port-forward svc/monitor 8080:8080
 
 ### Le tableau de bord
 
+![Vue d'ensemble du tableau de bord](docs/captures/vue-ensemble-clair.png)
+
 | Onglet | Contenu |
 |---|---|
 | Vue d'ensemble | table en direct : un philosophe qui mange est relié aux fourchettes qu'il tient. Repas, débit, conflits, équité, courbe des repas par seconde |
@@ -699,7 +701,6 @@ Toutes les parties du sujet sont réalisées. Avant le rendu :
 
 - [ ] Rédiger la section « Utilisation de l'IA » du [rapport technique](docs/rapport-technique.md#8-utilisation-de-lia)
   (sujet, §8.2).
-- [ ] Ajouter au rapport des captures du tableau de bord pour chaque partie.
 - [ ] Lancer une fois `docker compose up --build`, et un déploiement Kubernetes (avec kind ou minikube). Les
   fichiers sont validés, mais ils n'ont pas pu être exécutés sur la machine de développement, faute de démon
   Docker et de cluster.
