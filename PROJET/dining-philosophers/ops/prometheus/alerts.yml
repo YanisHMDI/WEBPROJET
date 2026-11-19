@@ -1,0 +1,39 @@
+# Partie 6 — détection des pannes et des anomalies (visibles dans Prometheus > Alerts).
+groups:
+  - name: diner-des-philosophes
+    rules:
+      - alert: ServiceInjoignable
+        expr: up == 0
+        for: 15s
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.instance }} ne répond plus"
+          description: "Le service {{ $labels.job }} ({{ $labels.instance }}) est injoignable depuis 15 s."
+
+      - alert: ExclusionMutuelleViolee
+        expr: monitor_conflicts > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "Deux philosophes ont mangé avec la même fourchette"
+          description: "{{ $value }} conflit(s) observé(s) par le moniteur."
+
+      - alert: SuperviseurViolation
+        expr: supervisor_violations > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "Le superviseur a attribué une fourchette déjà prise"
+
+      - alert: Famine
+        expr: increase(philo_meals_total[2m]) == 0
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: "P{{ $labels.philosopher }} n'a pas mangé depuis 2 minutes"
+          description: "Famine ou interblocage possible (mode {{ $labels.mode }})."
+
+      - alert: AttenteLongue
+        expr: histogram_quantile(0.95, sum by (le, philosopher) (rate(philo_fork_wait_seconds_bucket[1m]))) > 5
+        for: 1m
+        labels: { severity: warning }
+        annotations:
+          summary: "P{{ $labels.philosopher }} attend ses fourchettes plus de 5 s (95e centile)"

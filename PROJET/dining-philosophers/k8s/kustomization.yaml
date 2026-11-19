@@ -1,0 +1,24 @@
+# Partie 6 — déploiement Kubernetes :  kubectl apply -k k8s
+# Images publiées par la CI (GitHub Actions) sur ghcr.io. Pour changer de version : images[].newTag.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: philosophes
+resources:
+  - namespace.yaml
+  - config.yaml
+  - kafka.yaml
+  - zookeeper.yaml
+  - monitor.yaml
+  - supervisor.yaml
+  - philosophers.yaml
+  - monitoring.yaml
+images:
+  - name: philo/monitor-service
+    newName: ghcr.io/yanishmdi/dining-philosophers-monitor-service
+    newTag: latest
+  - name: philo/supervisor-service
+    newName: ghcr.io/yanishmdi/dining-philosophers-supervisor-service
+    newTag: latest
+  - name: philo/philosopher-service
+    newName: ghcr.io/yanishmdi/dining-philosophers-philosopher-service
+    newTag: latest

@@ -1,124 +1,442 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Dîner des philosophes — moniteur</title>
-    <style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dîner des philosophes</title>
+<style>
+    :root {
+        --bg: #f4f2ee; --panel: #ffffff; --panel-2: #faf8f5; --line: #e4dfd6; --text: #22201c; --muted: #6f6a61;
+        --accent: #3b5bdb; --accent-soft: #e7ecfd;
+        --thinking: #4c6ef5; --hungry: #f08c00; --eating: #2f9e44; --unknown: #adb5bd; --stopped: #868e96;
+        --danger: #e03131; --danger-soft: #ffe3e3; --ok: #2f9e44; --ok-soft: #e3f6e6;
+        --table: #efe7da; --table-edge: #d8ccb8; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
+        --radius: 14px;
+    }
+    @media (prefers-color-scheme: dark) {
         :root {
-            --bg: #f6f5f2; --card: #ffffff; --ink: #1f2328; --muted: #6b7280; --line: #e5e3de;
-            --thinking: #3b82f6; --hungry: #f59e0b; --eating: #16a34a; --unknown: #9ca3af; --danger: #dc2626;
+            --bg: #141517; --panel: #1c1d21; --panel-2: #212226; --line: #2e3036; --text: #e9e7e2; --muted: #9a968d;
+            --accent: #7b93ff; --accent-soft: #252c47;
+            --danger-soft: #3b1f21; --ok-soft: #1b3122; --table: #2a2722; --table-edge: #3b362e;
+            --shadow: 0 1px 2px rgba(0,0,0,.4);
         }
-        * { box-sizing: border-box; }
-        body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--ink); }
-        header { padding: 20px 28px; border-bottom: 1px solid var(--line); background: var(--card); display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
-        header h1 { font-size: 20px; margin: 0; }
-        header .meta { color: var(--muted); font-size: 14px; }
-        header button { margin-left: auto; border: 1px solid var(--line); background: var(--card); padding: 6px 12px; border-radius: 6px; cursor: pointer; }
-        main { display: grid; grid-template-columns: 420px 1fr; gap: 20px; padding: 20px 28px; }
-        @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
-        section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; }
-        section h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; }
-        svg { width: 100%; height: auto; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
-        th { color: var(--muted); font-weight: 500; }
-        .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 600; }
-        .THINKING { background: var(--thinking); } .HUNGRY { background: var(--hungry); }
-        .EATING { background: var(--eating); } .UNKNOWN { background: var(--unknown); }
-        .conflict { color: var(--danger); }
-        .ok { color: var(--eating); }
-        .events { max-height: 420px; overflow-y: auto; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
-        .stack { display: grid; gap: 20px; }
-    </style>
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text);
+           font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 18px 28px 0; }
+    header h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
+    header .sub { color: var(--muted); font-size: 13px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+             font-size: 12px; font-weight: 600; background: var(--accent-soft); color: var(--accent); }
+    .badge.live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--ok);
+                          animation: pulse 1.6s infinite; }
+    .badge.off { background: var(--danger-soft); color: var(--danger); }
+    .badge.off::before { background: var(--danger); animation: none; }
+    @keyframes pulse { 50% { opacity: .3; } }
+    .spacer { flex: 1; }
+    nav { display: flex; gap: 4px; padding: 14px 28px 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+    nav button { border: 0; background: none; color: var(--muted); font: inherit; font-weight: 600; cursor: pointer;
+                 padding: 10px 14px; border-bottom: 2px solid transparent; white-space: nowrap; }
+    nav button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+    main { padding: 22px 28px 40px; max-width: 1400px; }
+    .tab { display: none; } .tab.active { display: block; }
+    .grid { display: grid; gap: 18px; }
+    .kpis { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 18px; }
+    .two { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+    @media (max-width: 980px) { .two { grid-template-columns: 1fr; } main, header, nav { padding-left: 16px; padding-right: 16px; } }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px;
+            box-shadow: var(--shadow); min-width: 0; }
+    .card h2 { font-size: 14px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .kpi .label { color: var(--muted); font-size: 13px; }
+    .kpi .value { font-size: 30px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+    .kpi .hint { color: var(--muted); font-size: 12px; }
+    .kpi.bad .value { color: var(--danger); } .kpi.good .value { color: var(--ok); }
+    svg text { font-family: inherit; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); font-size: 14px; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    tr:last-child td { border-bottom: 0; }
+    .scroll { max-height: 520px; overflow: auto; }
+    .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #fff; }
+    .THINKING { background: var(--thinking); } .HUNGRY { background: var(--hungry); } .EATING { background: var(--eating); }
+    .UNKNOWN, .STOPPED { background: var(--unknown); }
+    .fork { display: inline-block; min-width: 30px; padding: 1px 7px; margin: 1px 2px; border-radius: 6px; font-size: 12px;
+            font-weight: 600; background: var(--panel-2); border: 1px solid var(--line); text-align: center; }
+    .btn { border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; font-weight: 600;
+           border-radius: 9px; padding: 7px 14px; cursor: pointer; }
+    .btn:hover { border-color: var(--accent); }
+    .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn.danger { color: var(--danger); }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .ok-box, .bad-box { padding: 12px 14px; border-radius: 10px; font-weight: 600; }
+    .ok-box { background: var(--ok-soft); color: var(--ok); } .bad-box { background: var(--danger-soft); color: var(--danger); }
+    .muted { color: var(--muted); } .small { font-size: 13px; }
+    form.job { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; align-items: end; }
+    label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); font-weight: 600; }
+    input, select { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line);
+                    border-radius: 9px; padding: 8px 10px; width: 100%; }
+    .results { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-top: 16px; }
+    .tokens { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); margin-top: 8px; }
+    .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+                           margin-right: 6px; vertical-align: -1px; background: var(--c); }
+    .empty { color: var(--muted); padding: 24px; text-align: center; }
+    code { font-size: 12.5px; background: var(--panel-2); padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line); }
+</style>
 </head>
 <body>
 <header>
-    <h1>Dîner des philosophes</h1>
-    <span class="meta" id="meta">connexion…</span>
-    <button id="reset" title="Vide l'historique du moniteur">Réinitialiser</button>
-</header>
-<main>
-    <div class="stack">
-        <section>
-            <h2>Table</h2>
-            <svg id="table" viewBox="0 0 400 400" role="img" aria-label="Table des philosophes"></svg>
-        </section>
-        <section>
-            <h2>Exclusion mutuelle</h2>
-            <div id="conflicts"></div>
-        </section>
+    <div>
+        <h1>Le dîner des philosophes</h1>
+        <div class="sub" id="meta">connexion au moniteur…</div>
     </div>
-    <div class="stack">
-        <section>
+    <span class="badge live" id="live">en direct</span>
+    <span class="badge" id="mode">mode —</span>
+    <span class="spacer"></span>
+    <button class="btn" id="reset" title="Efface l'historique et les conflits du moniteur">Réinitialiser l'historique</button>
+</header>
+
+<nav role="tablist">
+    <button role="tab" aria-selected="true" data-tab="overview">Vue d'ensemble</button>
+    <button role="tab" aria-selected="false" data-tab="philosophers">Philosophes</button>
+    <button role="tab" aria-selected="false" data-tab="tokens">Jetons</button>
+    <button role="tab" aria-selected="false" data-tab="history">Historique</button>
+    <button role="tab" aria-selected="false" data-tab="graph">Calcul distribué</button>
+</nav>
+
+<main>
+    <!-- ================================================================ VUE D'ENSEMBLE -->
+    <section class="tab active" id="tab-overview">
+        <div class="grid kpis">
+            <div class="card kpi"><div class="label">Repas terminés</div><div class="value" id="k-meals">0</div><div class="hint">tous philosophes confondus</div></div>
+            <div class="card kpi"><div class="label">Débit</div><div class="value" id="k-rate">0</div><div class="hint">repas par minute (30 dernières s)</div></div>
+            <div class="card kpi" id="k-conflicts-card"><div class="label">Conflits</div><div class="value" id="k-conflicts">0</div><div class="hint">fourchette partagée (doit rester à 0)</div></div>
+            <div class="card kpi"><div class="label">Équité</div><div class="value" id="k-fair">—</div><div class="hint">repas du moins servi / du plus servi</div></div>
+            <div class="card kpi"><div class="label">Événements</div><div class="value" id="k-events">0</div><div class="hint" id="k-stale">0 hors ordre</div></div>
+        </div>
+        <div class="grid two">
+            <div class="card">
+                <h2>La table</h2>
+                <svg id="table" viewBox="0 0 440 440" role="img" aria-label="Table des philosophes"></svg>
+                <div class="legend">
+                    <span style="--c: var(--thinking)">pense</span><span style="--c: var(--hungry)">a faim</span>
+                    <span style="--c: var(--eating)">mange</span><span style="--c: var(--unknown)">arrêté / inconnu</span>
+                </div>
+            </div>
+            <div class="grid" style="align-content: start">
+                <div class="card">
+                    <h2>Repas par seconde</h2>
+                    <svg id="spark" viewBox="0 0 400 110" preserveAspectRatio="none" style="width:100%;height:110px"></svg>
+                    <div class="small muted">60 dernières secondes</div>
+                </div>
+                <div class="card">
+                    <h2>Exclusion mutuelle</h2>
+                    <div id="conflicts"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================================ PHILOSOPHES -->
+    <section class="tab" id="tab-philosophers">
+        <div class="card">
             <h2>Philosophes</h2>
-            <table>
-                <thead><tr><th>#</th><th>État</th><th>Repas</th><th>Fourchettes</th><th>Horloge</th><th>Vu à</th></tr></thead>
-                <tbody id="philosophers"></tbody>
-            </table>
-        </section>
-        <section>
-            <h2>Historique (ordre de Lamport)</h2>
-            <div class="events">
+            <p class="small muted" style="margin-top:-4px">Arrêter un philosophe simule une panne propre : il termine son repas, rend ses fourchettes et cesse de manger,
+                mais reste joignable (en mode TOKEN, il continue de céder ses jetons).</p>
+            <div class="scroll">
                 <table>
-                    <thead><tr><th>Lamport</th><th>Philosophe</th><th>Événement</th><th>Fourchettes</th><th>Reçu n°</th></tr></thead>
+                    <thead><tr><th>#</th><th>État</th><th>Repas</th><th>Part</th><th>Fourchettes</th><th>Horloge</th><th>Service</th><th></th></tr></thead>
+                    <tbody id="philosophers"></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================================================================ JETONS -->
+    <section class="tab" id="tab-tokens">
+        <div class="card" style="margin-bottom:18px">
+            <h2>Protocole à jetons (partie 3.3)</h2>
+            <div class="small muted">Chaque fourchette a un jeton unique. Les demandes sont servies dans l'ordre (horloge de Lamport, puis identifiant).
+                Cet onglet n'a de contenu qu'en mode <code>TOKEN</code>.</div>
+        </div>
+        <div class="grid tokens" id="tokens"></div>
+    </section>
+
+    <!-- ================================================================ HISTORIQUE -->
+    <section class="tab" id="tab-history">
+        <div class="card">
+            <h2>Historique, trié par horloge de Lamport</h2>
+            <div class="scroll">
+                <table>
+                    <thead><tr><th>Lamport</th><th>Philosophe</th><th>Événement</th><th>Fourchettes</th><th>Reçu n°</th><th>Heure</th></tr></thead>
                     <tbody id="events"></tbody>
                 </table>
             </div>
-        </section>
-    </div>
+        </div>
+    </section>
+
+    <!-- ================================================================ CALCUL DISTRIBUÉ -->
+    <section class="tab" id="tab-graph">
+        <div class="card" style="margin-bottom:18px">
+            <h2>Master–Worker sur un graphe (partie 5)</h2>
+            <p class="small muted" style="margin-top:-4px">P0 joue le Master et découpe un graphe aléatoire entre les autres philosophes (Workers).
+                Arrêtez un Worker pendant un calcul pour voir le Master relancer sa tâche ailleurs.</p>
+            <form class="job" id="job">
+                <label>Calcul
+                    <select name="kind"><option value="degrees">Degré de chaque nœud</option><option value="reachability">Accessibilité s → t</option></select>
+                </label>
+                <label>Nœuds <input name="nodes" type="number" min="2" value="100000"></label>
+                <label>Arcs <input name="edges" type="number" min="0" value="500000"></label>
+                <label>Graine <input name="seed" type="number" value="1"></label>
+                <label>Workers <input name="workers" type="number" min="1" value="4"></label>
+                <label class="reach">Source s <input name="source" type="number" min="0" value="0"></label>
+                <label class="reach">Cible t <input name="target" type="number" min="0" value="99999"></label>
+                <button class="btn primary" type="submit" id="run">Lancer</button>
+                <button class="btn" type="button" id="sweep">Comparer 1 → N Workers</button>
+            </form>
+            <div id="job-error"></div>
+            <div class="grid results" id="job-result"></div>
+        </div>
+        <div class="card">
+            <h2>Temps de calcul selon le nombre de Workers</h2>
+            <svg id="bars" viewBox="0 0 640 260" style="width:100%;height:260px"></svg>
+            <div class="small muted" id="bars-note">Lancez « Comparer » pour mesurer. La barre grise est le calcul séquentiel sur une seule machine.</div>
+        </div>
+    </section>
 </main>
+
 <script>
-    const colors = { THINKING: 'var(--thinking)', HUNGRY: 'var(--hungry)', EATING: 'var(--eating)', UNKNOWN: 'var(--unknown)' };
-    const labels = { THINKING: 'pense', HUNGRY: 'a faim', EATING: 'mange', UNKNOWN: '—' };
-    const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString('fr-FR') : '—';
+const $ = id => document.getElementById(id);
+const labels = { THINKING: 'pense', HUNGRY: 'a faim', EATING: 'mange', UNKNOWN: '—', STOPPED: 'arrêté' };
+const colors = { THINKING: 'var(--thinking)', HUNGRY: 'var(--hungry)', EATING: 'var(--eating)', UNKNOWN: 'var(--unknown)', STOPPED: 'var(--stopped)' };
+const fmtTime = iso => iso ? new Date(iso).toLocaleTimeString('fr-FR') : '—';
+const forks = list => (list && list.length) ? list.map(f => `<span class="fork">F${f}</span>`).join('') : '<span class="muted">—</span>';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function json(url, options) {
+    const r = await fetch(url, options);
+    const body = await r.text();
+    const data = body ? JSON.parse(body) : {};
+    if (!r.ok) throw new Error(data.detail || `erreur ${r.status}`);
+    return data;
+}
 
-    function drawTable(philosophers) {
-        const n = philosophers.length, cx = 200, cy = 200, r = 140;
-        let svg = `<circle cx="${cx}" cy="${cy}" r="95" fill="#efe9dd" stroke="#d6cfc0"/>`;
-        philosophers.forEach((p, i) => {
-            const a = (2 * Math.PI * i) / n - Math.PI / 2;
-            const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
-            // fourchette i entre le philosophe i-1 et i
-            const fa = a - Math.PI / n, fx = cx + 80 * Math.cos(fa), fy = cy + 80 * Math.sin(fa);
-            svg += `<text x="${fx}" y="${fy}" text-anchor="middle" dominant-baseline="middle" font-size="11" fill="#6b7280">F${i}</text>`;
-            svg += `<circle cx="${x}" cy="${y}" r="30" fill="${colors[p.state]}"/>`;
-            svg += `<text x="${x}" y="${y - 4}" text-anchor="middle" fill="#fff" font-weight="700">P${p.id}</text>`;
-            svg += `<text x="${x}" y="${y + 12}" text-anchor="middle" fill="#fff" font-size="11">${labels[p.state]}</text>`;
-        });
-        document.getElementById('table').innerHTML = svg;
-    }
-
-    async function refresh() {
-        try {
-            const [state, events] = await Promise.all([
-                fetch('/api/state').then(r => r.json()),
-                fetch('/api/events?limit=150').then(r => r.json())
-            ]);
-            document.getElementById('meta').textContent =
-                `${state.philosopherCount} philosophes · ${state.totalEvents} événements reçus · ${state.staleEvents} hors ordre`;
-            drawTable(state.philosophers);
-            document.getElementById('philosophers').innerHTML = state.philosophers.map(p =>
-                `<tr><td>P${p.id}</td><td><span class="pill ${p.state}">${labels[p.state]}</span></td>
-                 <td>${p.meals}</td><td>${(p.forks || []).map(f => 'F' + f).join(' ') || '—'}</td><td>${p.lastLamport}</td><td>${fmtTime(p.lastSeen)}</td></tr>`).join('');
-            document.getElementById('conflicts').innerHTML = state.conflicts.length === 0
-                ? '<p class="ok">Aucune fourchette n\'a été utilisée par deux philosophes à la fois.</p>'
-                : `<p class="conflict"><strong>${state.conflicts.length} violation(s)</strong> : deux philosophes ont mangé avec la même fourchette.</p>
-                   <table>${state.conflicts.slice(-10).reverse().map(c =>
-                    `<tr class="conflict"><td>P${c.philosopher} & P${c.other}</td><td>F${c.sharedFork}</td><td>${fmtTime(c.detectedAt)}</td></tr>`).join('')}</table>`;
-            document.getElementById('events').innerHTML = events.slice().reverse().map(e =>
-                `<tr><td>${e.event.lamport}</td><td>P${e.event.philosopherId}</td><td>${e.event.type}</td><td>${(e.event.forks || []).map(f => 'F' + f).join(' ')}</td><td>${e.sequence}</td></tr>`).join('');
-        } catch (err) {
-            document.getElementById('meta').textContent = 'moniteur injoignable';
-        }
-    }
-
-    document.getElementById('reset').addEventListener('click', async () => {
-        await fetch('/api/events', { method: 'DELETE' });
-        refresh();
-    });
+// ------------------------------------------------------------------ onglets
+let activeTab = 'overview';
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(x => x.setAttribute('aria-selected', x === b));
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + b.dataset.tab));
+    activeTab = b.dataset.tab;
     refresh();
-    setInterval(refresh, 1000);
+}));
+
+// ------------------------------------------------------------------ état partagé
+let state = null, cluster = [], history = [];      // history : [temps, repas cumulés]
+
+function drawTable(philosophers) {
+    const n = philosophers.length, cx = 220, cy = 220, r = 158;
+    const pos = i => { const a = 2 * Math.PI * i / n - Math.PI / 2; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
+    const forkPos = f => { const a = 2 * Math.PI * f / n - Math.PI / 2 - Math.PI / n; return [cx + 92 * Math.cos(a), cy + 92 * Math.sin(a)]; };
+    const stopped = id => { const c = cluster.find(x => x.id === id); return c && (!c.reachable || (c.status && c.status.state === 'STOPPED')); };
+    let svg = `<circle cx="${cx}" cy="${cy}" r="112" fill="var(--table)" stroke="var(--table-edge)" stroke-width="2"/>`;
+    // liens philosophe → fourchettes tenues
+    philosophers.forEach(p => {
+        if (p.state !== 'EATING') return;
+        const [x, y] = pos(p.id);
+        (p.forks || []).forEach(f => { const [fx, fy] = forkPos(f);
+            svg += `<line x1="${x}" y1="${y}" x2="${fx}" y2="${fy}" stroke="var(--eating)" stroke-width="3" stroke-linecap="round" opacity=".55"/>`; });
+    });
+    for (let f = 0; f < n; f++) {
+        const [fx, fy] = forkPos(f);
+        const used = philosophers.some(p => p.state === 'EATING' && (p.forks || []).includes(f));
+        svg += `<g><circle cx="${fx}" cy="${fy}" r="14" fill="${used ? 'var(--eating)' : 'var(--panel)'}" stroke="var(--table-edge)"/>
+                <text x="${fx}" y="${fy + 4}" text-anchor="middle" font-size="11" font-weight="700" fill="${used ? '#fff' : 'var(--muted)'}">F${f}</text></g>`;
+    }
+    philosophers.forEach(p => {
+        const [x, y] = pos(p.id);
+        const st = stopped(p.id) ? 'STOPPED' : p.state;
+        svg += `<g><circle cx="${x}" cy="${y}" r="34" fill="${colors[st]}" stroke="var(--panel)" stroke-width="4"/>
+                <text x="${x}" y="${y - 3}" text-anchor="middle" fill="#fff" font-weight="800" font-size="15">P${p.id}</text>
+                <text x="${x}" y="${y + 13}" text-anchor="middle" fill="#fff" font-size="11">${labels[st]} · ${p.meals}</text></g>`;
+    });
+    $('table').innerHTML = svg;
+}
+
+function drawSpark() {
+    const now = Date.now(), pts = history.filter(([t]) => now - t <= 60000);
+    if (pts.length < 2) { $('spark').innerHTML = ''; return; }
+    const rates = [];
+    for (let i = 1; i < pts.length; i++) {
+        const dt = (pts[i][0] - pts[i - 1][0]) / 1000;
+        rates.push([pts[i][0], dt > 0 ? (pts[i][1] - pts[i - 1][1]) / dt : 0]);
+    }
+    const max = Math.max(1, ...rates.map(r => r[1]));
+    const x = t => 400 - (now - t) / 60000 * 400, y = v => 100 - v / max * 88;
+    const line = rates.map(([t, v], i) => `${i ? 'L' : 'M'}${x(t).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    $('spark').innerHTML = `<path d="${line} L${x(rates.at(-1)[0])},104 L${x(rates[0][0])},104 Z" fill="var(--accent-soft)"/>
+        <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.2" vector-effect="non-scaling-stroke"/>
+        <text x="4" y="12" font-size="11" fill="var(--muted)">max ${max.toFixed(1)}/s</text>`;
+}
+
+function renderOverview() {
+    const ps = state.philosophers, meals = ps.map(p => p.meals), total = meals.reduce((a, b) => a + b, 0);
+    $('k-meals').textContent = total.toLocaleString('fr-FR');
+    $('k-events').textContent = state.totalEvents.toLocaleString('fr-FR');
+    $('k-stale').textContent = `${state.staleEvents} arrivés hors ordre`;
+    $('k-conflicts').textContent = state.conflicts.length;
+    $('k-conflicts-card').classList.toggle('bad', state.conflicts.length > 0);
+    $('k-conflicts-card').classList.toggle('good', state.conflicts.length === 0);
+    const max = Math.max(...meals), min = Math.min(...meals);
+    $('k-fair').textContent = max > 0 ? (min / max).toFixed(2) : '—';
+    const recent = history.filter(([t]) => Date.now() - t <= 30000);
+    const rate = recent.length > 1 ? (recent.at(-1)[1] - recent[0][1]) / ((recent.at(-1)[0] - recent[0][0]) / 60000) : 0;
+    $('k-rate').textContent = Math.round(rate).toLocaleString('fr-FR');
+    drawTable(ps);
+    drawSpark();
+    $('conflicts').innerHTML = state.conflicts.length === 0
+        ? '<div class="ok-box">Aucune fourchette n\'a été utilisée par deux philosophes à la fois.</div>'
+        : `<div class="bad-box">${state.conflicts.length} violation(s) : deux philosophes ont mangé avec la même fourchette.</div>
+           <table style="margin-top:10px"><thead><tr><th>Philosophes</th><th>Fourchette</th><th>Heure</th></tr></thead><tbody>${
+           state.conflicts.slice(-8).reverse().map(c => `<tr><td>P${c.philosopher} &amp; P${c.other}</td><td><span class="fork">F${c.sharedFork}</span></td><td>${fmtTime(c.detectedAt)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function renderPhilosophers() {
+    const total = state.philosophers.reduce((a, p) => a + p.meals, 0);
+    $('philosophers').innerHTML = state.philosophers.map(p => {
+        const c = cluster.find(x => x.id === p.id) || {};
+        const s = c.status || {};
+        const running = c.reachable && s.state !== 'STOPPED';
+        const share = total ? (100 * p.meals / total).toFixed(0) + ' %' : '—';
+        return `<tr><td><b>P${p.id}</b></td><td><span class="pill ${p.state}">${labels[p.state]}</span></td>
+            <td>${p.meals}</td><td>${share}</td><td>${forks(p.forks)}</td><td>${p.lastLamport}</td>
+            <td>${c.reachable === undefined ? '<span class="muted">—</span>' : c.reachable
+                ? `<span class="small">${esc(s.mode || '')} · ${s.state === 'STOPPED' ? 'arrêté' : 'actif'}</span>` : '<span class="small" style="color:var(--danger)">injoignable</span>'}</td>
+            <td>${c.reachable ? `<button class="btn ${running ? 'danger' : ''}" data-act="${running ? 'stop' : 'start'}" data-id="${p.id}">${running ? 'Arrêter' : 'Redémarrer'}</button>` : ''}</td></tr>`;
+    }).join('');
+}
+$('philosophers').addEventListener('click', async e => {
+    const b = e.target.closest('button[data-act]');
+    if (!b) return;
+    b.disabled = true;
+    try { await json(`/api/cluster/${b.dataset.id}/${b.dataset.act}`, { method: 'POST' }); } catch (err) { alert(err.message); }
+    await refreshCluster(); renderPhilosophers();
+});
+
+async function renderTokens() {
+    const reachable = cluster.filter(c => c.reachable && c.status && c.status.mode === 'TOKEN');
+    if (!reachable.length) { $('tokens').innerHTML = '<div class="card empty">Aucun philosophe en mode TOKEN. Lancez <code>./scripts/run-local.sh TOKEN</code>.</div>'; return; }
+    const states = await Promise.all(reachable.map(c => json(`/api/cluster/${c.id}/token-state`).catch(() => null)));
+    $('tokens').innerHTML = states.map((t, i) => {
+        if (!t) return `<div class="card"><h2>P${reachable[i].id}</h2><div class="muted">état indisponible</div></div>`;
+        const transit = Object.entries(t.inTransit || {});
+        return `<div class="card"><h2>P${t.id} · horloge ${t.lamport}</h2>
+            <div class="small muted">Jetons détenus</div><div style="margin:4px 0 10px">${forks(t.heldTokens)}</div>
+            ${transit.length ? `<div class="small muted">En transit</div><div style="margin:4px 0 10px">${transit.map(([f, to]) => `<span class="fork">F${f} → P${to}</span>`).join('')}</div>` : ''}
+            <div class="small muted">Demande en cours</div><div style="margin:4px 0 10px">${t.current
+                ? `${forks(t.current.forks)} <span class="small muted">h=${t.current.lamport}${t.eating ? ' · mange' : ' · attend'}</span>` : '<span class="muted">aucune</span>'}</div>
+            <div class="small muted">File d'attente vue par P${t.id}</div>
+            <div style="margin-top:4px">${(t.queue || []).length ? t.queue.map(q => `<div class="small">(${q.lamport}, P${q.requester}) → ${forks(q.forks)}</div>`).join('') : '<span class="muted">vide</span>'}</div>
+            <div class="small muted" style="margin-top:10px">${t.stats.requestsSent} demandes · ${t.stats.tokensSent} jetons envoyés · ${t.stats.duplicatesIgnored} doublons ignorés</div>
+        </div>`;
+    }).join('');
+}
+
+async function renderHistory() {
+    const events = await json('/api/events?limit=200');
+    $('events').innerHTML = events.slice().reverse().map(e =>
+        `<tr><td>${e.event.lamport}</td><td>P${e.event.philosopherId}</td><td><span class="pill ${e.event.type === 'DONE' ? 'THINKING' : e.event.type}">${e.event.type}</span></td>
+         <td>${forks(e.event.forks)}</td><td>${e.sequence}</td><td>${fmtTime(e.receivedAt)}</td></tr>`).join('')
+        || '<tr><td colspan="6" class="empty">aucun événement</td></tr>';
+}
+
+// ------------------------------------------------------------------ calcul distribué
+const form = $('job');
+const toggleReach = () => document.querySelectorAll('.reach').forEach(l => l.style.display = form.kind.value === 'reachability' ? '' : 'none');
+form.kind.addEventListener('change', toggleReach); toggleReach();
+function jobBody(workers) {
+    const v = n => Number(form[n].value);
+    const body = { nodes: v('nodes'), edges: v('edges'), seed: v('seed'), workers: workers ?? v('workers') };
+    if (form.kind.value === 'reachability') { body.source = v('source'); body.target = v('target'); }
+    return body;
+}
+const tile = (label, value, cls = '') => `<div class="card kpi ${cls}"><div class="label">${label}</div><div class="value" style="font-size:24px">${value}</div></div>`;
+async function runJob(workers) {
+    return json(`/api/cluster/master/${form.kind.value}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(jobBody(workers)) });
+}
+form.addEventListener('submit', async e => {
+    e.preventDefault();
+    $('run').disabled = true; $('job-error').innerHTML = ''; $('job-result').innerHTML = '<div class="muted">calcul en cours…</div>';
+    try {
+        const r = await runJob();
+        $('job-result').innerHTML = [
+            r.reachable !== undefined ? tile('t accessible depuis s', r.reachable ? 'oui' : 'non') : tile('Degré maximal', r.maxDegree),
+            tile('Résultat exact', r.correct ? 'oui' : 'NON', r.correct ? 'good' : 'bad'),
+            tile('Temps distribué', r.distributedMs + ' ms'), tile('Temps séquentiel', r.sequentialMs + ' ms'),
+            tile('Workers', r.workers.map(w => 'P' + w).join(' ')),
+            r.levels !== undefined ? tile('Niveaux du parcours', r.levels) : tile('Somme des degrés', r.sumOfDegrees.toLocaleString('fr-FR')),
+            tile('Tâches relancées', r.reassigned, r.reassigned ? 'bad' : ''), tile('Copies spéculatives', r.speculative)
+        ].join('');
+    } catch (err) { $('job-result').innerHTML = ''; $('job-error').innerHTML = `<div class="bad-box" style="margin-top:14px">${esc(err.message)}</div>`; }
+    $('run').disabled = false;
+});
+$('sweep').addEventListener('click', async () => {
+    const max = Math.max(1, cluster.filter(c => c.reachable && c.id !== 0).length);
+    $('sweep').disabled = true; $('bars-note').textContent = 'mesure en cours…';
+    const rows = [];
+    try {
+        for (let w = 1; w <= max; w++) {
+            let best = null;
+            for (let k = 0; k < 2; k++) { const r = await runJob(w); if (!best || r.distributedMs < best.distributedMs) best = r; }
+            rows.push(best); drawBars(rows);
+        }
+        $('bars-note').textContent = `Meilleur de 2 essais par configuration. Le calcul séquentiel prend ${rows[0].sequentialMs} ms : ici, transférer les données coûte plus cher que calculer.`;
+    } catch (err) { $('bars-note').textContent = err.message; }
+    $('sweep').disabled = false;
+});
+function drawBars(rows) {
+    const W = 640, H = 260, pad = 44, bw = (W - pad * 2) / (rows.length + 1);
+    const max = Math.max(1, ...rows.map(r => r.distributedMs), rows[0].sequentialMs);
+    const y = v => H - 30 - v / max * (H - 60);
+    let svg = `<line x1="${pad}" y1="${H - 30}" x2="${W - 10}" y2="${H - 30}" stroke="var(--line)"/>`;
+    const seq = rows[0].sequentialMs;
+    svg += `<rect x="${pad + bw * .15}" y="${y(seq)}" width="${bw * .7}" height="${H - 30 - y(seq)}" rx="6" fill="var(--unknown)"/>
+            <text x="${pad + bw / 2}" y="${H - 12}" text-anchor="middle" font-size="12" fill="var(--muted)">séquentiel</text>
+            <text x="${pad + bw / 2}" y="${y(seq) - 6}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--text)">${seq} ms</text>`;
+    rows.forEach((r, i) => {
+        const x = pad + bw * (i + 1);
+        svg += `<rect x="${x + bw * .15}" y="${y(r.distributedMs)}" width="${bw * .7}" height="${H - 30 - y(r.distributedMs)}" rx="6" fill="var(--accent)"/>
+                <text x="${x + bw / 2}" y="${H - 12}" text-anchor="middle" font-size="12" fill="var(--muted)">${r.workers.length} worker${r.workers.length > 1 ? 's' : ''}</text>
+                <text x="${x + bw / 2}" y="${y(r.distributedMs) - 6}" text-anchor="middle" font-size="12" font-weight="700" fill="var(--text)">${r.distributedMs} ms</text>`;
+    });
+    $('bars').innerHTML = svg;
+}
+
+// ------------------------------------------------------------------ rafraîchissement
+async function refreshCluster() {
+    try { cluster = await json('/api/cluster'); } catch { cluster = []; }
+    const modes = [...new Set(cluster.filter(c => c.reachable && c.status).map(c => c.status.mode))];
+    $('mode').textContent = modes.length ? 'mode ' + modes.join(', ') : 'philosophes injoignables';
+}
+let tick = 0;
+async function refresh() {
+    try {
+        state = await json('/api/state');
+        history.push([Date.now(), state.philosophers.reduce((a, p) => a + p.meals, 0)]);
+        history = history.filter(([t]) => Date.now() - t <= 65000);
+        if (tick++ % 2 === 0 || activeTab === 'philosophers' || activeTab === 'tokens') await refreshCluster();
+        $('meta').textContent = `${state.philosopherCount} philosophes · ${cluster.filter(c => c.reachable).length} joignables`;
+        $('live').className = 'badge live'; $('live').textContent = 'en direct';
+        renderOverview();
+        if (activeTab === 'philosophers') renderPhilosophers();
+        if (activeTab === 'tokens') await renderTokens();
+        if (activeTab === 'history') await renderHistory();
+    } catch (err) {
+        $('live').className = 'badge live off'; $('live').textContent = 'moniteur injoignable';
+    }
+}
+$('reset').addEventListener('click', async () => { await fetch('/api/events', { method: 'DELETE' }); history = []; refresh(); });
+refresh();
+setInterval(refresh, 1000);
 </script>
 </body>
 </html>

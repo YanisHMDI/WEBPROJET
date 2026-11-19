@@ -20,6 +20,7 @@ import java.util.List;
  * @param retryDelay    attente entre deux tentatives quand une fourchette est refusée
  * @param httpTimeout   délai max d'une requête HTTP sortante
  * @param autoStart     démarrer la boucle dès que l'application est prête
+ * @param events        transport des événements vers le moniteur : HTTP (défaut) ou KAFKA (partie 6)
  * @param monitorUrl    URL du monitor-service
  * @param supervisorUrl URL du supervisor-service (modes NAIVE_SUPERVISOR et PAIR_SUPERVISOR)
  * @param peers         URL de chaque philosophe, dans l'ordre des identifiants, y compris soi-même
@@ -41,6 +42,7 @@ public record PhilosopherProperties(
         @DefaultValue("100ms") Duration retryDelay,
         @DefaultValue("2s") Duration httpTimeout,
         @DefaultValue("true") boolean autoStart,
+        @DefaultValue("HTTP") Events events,
         @DefaultValue("http://localhost:8080") String monitorUrl,
         @DefaultValue("http://localhost:8081") String supervisorUrl,
         @DefaultValue List<String> peers,
@@ -105,6 +107,13 @@ public record PhilosopherProperties(
     public record Graph(
             @DefaultValue("5s") Duration taskTimeout,
             @DefaultValue("0ms") Duration workerDelay) {
+    }
+
+    public enum Events {
+        /** POST synchrone vers le moniteur. */
+        HTTP,
+        /** Publication dans le topic Kafka {@code philo.events}, lu par le moniteur. */
+        KAFKA
     }
 
     public enum Mode {

@@ -19,7 +19,7 @@ class EventStoreTest {
 
     @BeforeEach
     void setUp() {
-        store = new EventStore(new MonitorProperties(5, true, 1000));
+        store = new EventStore(MonitorProperties.of(5, true, 1000));
     }
 
     @Test
@@ -113,7 +113,7 @@ class EventStoreTest {
 
     @Test
     void historyIsCapped() {
-        EventStore small = new EventStore(new MonitorProperties(5, false, 3));
+        EventStore small = new EventStore(MonitorProperties.of(5, false, 3));
         for (int i = 1; i <= 10; i++) {
             small.record(PhilosopherEvent.of(0, EventType.HUNGRY, i));
         }

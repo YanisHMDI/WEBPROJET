@@ -3,6 +3,7 @@ package fr.cytech.hamoudilitim.philo.monitor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -16,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@AutoConfigureObservability
 class EventControllerTest {
 
     @Autowired
@@ -50,5 +52,16 @@ class EventControllerTest {
                                 {"philosopherId": 42, "type": "HUNGRY", "lamport": 1}
                                 """))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void conflictsAndMealsAreExposedToPrometheus() throws Exception {
+        String metrics = mvc.perform(get("/actuator/prometheus")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(metrics)
+                .contains("monitor_conflicts")
+                .contains("monitor_meals{")
+                .contains("monitor_events");
     }
 }

@@ -1,6 +1,6 @@
 # Partie 4 — Stratégie de tests
 
-Tous les tests se lancent avec `mvn verify`, soit 105 tests. Ils sont rangés ici selon les 5 points du sujet.
+Tous les tests se lancent avec `mvn verify`, soit 111 tests. Ils sont rangés ici selon les 5 points du sujet.
 
 > Sur un portable, lancez plutôt `caffeinate -i mvn verify` sous macOS. Les tests de concurrence durent
 > quelques secondes chacun. Si la machine se met en veille pendant ce temps, les durées mesurées n'ont plus de
@@ -29,6 +29,8 @@ Une pièce est testée seule, et ses voisins sont simulés.
 | `GraphHttpIntegrationTest` | un Master et 2 Workers en HTTP : degrés et accessibilité exacts, même après l'arrêt d'un Worker |
 | `ZooKeeperStrategyTest` | un vrai serveur ZooKeeper, démarré dans la JVM du test (`curator-test`), et un client par philosophe |
 | `SupervisorApiTest`, `EventControllerTest`, `PhilosopherApplicationTest` | contrats HTTP (MockMvc) et choix de la stratégie selon le mode |
+| `KafkaEventListenerTest` | partie 6 : un vrai broker Kafka, démarré dans la JVM du test (`@EmbeddedKafka`). Les événements publiés arrivent au tableau de bord |
+| `EventControllerTest` | partie 6 : les métriques du moniteur sont bien exposées à Prometheus |
 
 ## 4.3 Tests de concurrence
 
@@ -53,6 +55,7 @@ repas qu'aucune fourchette n'est utilisée par deux philosophes.
 | Philosophe interrompu pendant son repas sous ZooKeeper | `ZooKeeperStrategyTest` | ses verrous sont bien rendus (bug trouvé et corrigé) |
 | Réponse perdue côté superviseur | `PairStrategyConcurrencyTest` | redemander renvoie « oui » (idempotence) : les fourchettes ne restent plus bloquées |
 | Superviseur injoignable | `SupervisorClientTest` | traité comme un refus, et le philosophe réessaie |
+| Kafka injoignable, ou message Kafka illisible | `KafkaEventReporterTest`, `KafkaEventListenerTest` | le philosophe n'est jamais bloqué, et un message illisible est écarté sans bloquer les suivants |
 | Worker en panne, lent, ou qui tombe en plein calcul | `GraphMasterTest`, `GraphHttpIntegrationTest` | tâche relancée ou copiée, résultat tardif ignoré, résultat final exact |
 
 ## 4.5 Analyse : ce que les tests prouvent, et ce qu'ils ne prouvent pas

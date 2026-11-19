@@ -1,0 +1,89 @@
+# Partie 6 — chaîne CI/CD du projet « dîner des philosophes ».
+#   1. build    : compile et lance les 105+ tests (mvn verify), garde les rapports de test
+#   2. config   : vérifie les manifests Kubernetes, le docker-compose et la configuration Prometheus
+#   3. images   : construit les 3 images Docker et, sur main, les publie sur ghcr.io
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths: ["PROJET/dining-philosophers/**", ".github/workflows/ci.yml"]
+  pull_request:
+    paths: ["PROJET/dining-philosophers/**", ".github/workflows/ci.yml"]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: PROJET/dining-philosophers
+
+jobs:
+  build:
+    name: Build et tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: mvn verify
+        run: mvn -B verify
+      - name: Rapports de test
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapports-de-test
+          path: PROJET/dining-philosophers/**/target/surefire-reports/
+          retention-days: 14
+
+  config:
+    name: Validation de la configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Manifests Kubernetes (kubeconform)
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar xz
+          kubectl kustomize k8s | ./kubeconform -strict -summary -
+      - name: docker compose
+        run: docker compose config -q
+      - name: Configuration Prometheus (promtool)
+        run: |
+          docker run --rm -v "$PWD/ops/prometheus:/etc/prometheus" --entrypoint promtool \
+            prom/prometheus:v2.54.1 check config /etc/prometheus/prometheus.yml
+
+  images:
+    name: Images Docker
+    needs: [build, config]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        module: [monitor-service, supervisor-service, philosopher-service]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Connexion à ghcr.io
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Nom de l'image
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/dining-philosophers-${{ matrix.module }}" >> "$GITHUB_OUTPUT"
+      - name: Build (et publication sur main)
+        uses: docker/build-push-action@v6
+        with:
+          context: PROJET/dining-philosophers
+          build-args: MODULE=${{ matrix.module }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ steps.image.outputs.name }}:latest
+            ${{ steps.image.outputs.name }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.module }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.module }}

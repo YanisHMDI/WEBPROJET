@@ -3,8 +3,14 @@
 Projet Spring Boot 3.3 (Java 17, Maven multi-modules) qui fait passer le problème des philosophes d'une
 version naïve à un protocole distribué d'exclusion mutuelle.
 
-Chaque philosophe est un microservice indépendant. Un moniteur observe l'ensemble et détecte en direct toute
-fourchette utilisée par deux philosophes à la fois.
+Chaque philosophe est un microservice indépendant. Un moniteur observe l'ensemble, détecte en direct toute
+fourchette utilisée par deux philosophes à la fois, et offre un **panneau de contrôle web** :
+- la table en direct ;
+- le démarrage ou l'arrêt d'un philosophe ;
+- l'état des jetons ;
+- les calculs distribués.
+
+**Rapport technique : [docs/rapport-technique.md](docs/rapport-technique.md).**
 
 ## Sommaire
 
@@ -13,7 +19,7 @@ fourchette utilisée par deux philosophes à la fois.
 3. [Démarrage rapide](#3-démarrage-rapide)
 4. [Architecture](#4-architecture)
 5. [Arborescence du projet](#5-arborescence-du-projet)
-6. [Les parties réalisées](#6-les-parties-réalisées), de la [partie 1](#partie-1--philosophes-gâtés) à la [partie 5](#partie-5--master-worker-sur-un-graphe)
+6. [Les parties réalisées](#6-les-parties-réalisées), de la [partie 1](#partie-1--philosophes-gâtés) à la [partie 6](#partie-6--approche-devops)
 7. [Tests](#7-tests)
 8. [API HTTP](#8-api-http)
 9. [Configuration](#9-configuration)
@@ -33,10 +39,10 @@ fourchette utilisée par deux philosophes à la fois.
 | 3.4 Comparaison avec ZooKeeper | ✅ fait | `ZOOKEEPER` |
 | 4. Tests (unitaires, intégration, concurrence, résilience, analyse) | ✅ fait | `mvn verify` |
 | 5. Master–Worker sur un graphe (degrés, accessibilité, pannes, performances) | ✅ fait | `/api/master/...` |
-| 6. DevOps (Docker ✅, Kafka, Kubernetes, CI/CD, supervision) | 🟡 Docker seulement | `docker compose up` |
-| 7. Livrables (code ✅, tests ✅, rapport) | 🟡 rapport à rédiger | — |
+| 6. DevOps : Docker, Kafka, Kubernetes, CI/CD, supervision, journaux, pannes | ✅ fait | `docker compose up` / `kubectl apply -k k8s` |
+| 7. Livrables : code, tests, [rapport technique](docs/rapport-technique.md) | ✅ fait (section « IA » du rapport à compléter) | — |
 
-**105 tests, tous verts.**
+**111 tests, tous verts.**
 
 ---
 
@@ -93,7 +99,7 @@ plus équitables**, mais **ZooKeeper résiste à la panne d'un philosophe**, ce 
 Le détail est dans [docs/comparaison-zookeeper.md](docs/comparaison-zookeeper.md).
 
 **Étape 8 — Tout tester, y compris les pannes (partie 4).**
-105 tests, lancés par `mvn verify` :
+111 tests, lancés par `mvn verify` :
 - **unitaires** : une pièce testée seule, les autres étant simulées avec Mockito ;
 - **intégration** : de vrais services qui se parlent en HTTP, et un vrai serveur ZooKeeper ;
 - **concurrence** : plusieurs philosophes à la fois, un contrôleur vérifie à chaque repas qu'aucune fourchette
@@ -121,9 +127,33 @@ Mesuré : sur ces calculs très légers, **le distribué est bien plus lent que 
 des données coûte plus cher que le calcul. Le détail et l'analyse sont dans
 [docs/master-worker.md](docs/master-worker.md).
 
-**Étape 10 — Lancer et organiser.**
+**Étape 10 — Déployer et surveiller (partie 6).**
+- **Docker** : chaque service a son image, et `docker compose up` lance tout, y compris Kafka, ZooKeeper,
+  Prometheus et Grafana.
+- **Kafka** : les événements des philosophes passent par Kafka. Si le moniteur s'arrête, il rattrape les
+  événements à son retour.
+- **Kubernetes** : les manifests placent les philosophes dans un `StatefulSet`, pour que chacun garde son
+  numéro, et utilisent des sondes de santé pour redémarrer un service en panne.
+- **GitHub Actions** : à chaque push, la CI teste, valide la configuration, puis publie les images.
+- **Prometheus et Grafana** : ils suivent les repas, les attentes et les conflits, et des alertes signalent
+  un service tombé, un conflit ou une famine.
+
+Le détail est dans [docs/devops.md](docs/devops.md).
+
+**Étape 11 — Une interface web pour tout piloter.**
+Le tableau de bord (<http://localhost:8080>) a cinq onglets :
+- **Vue d'ensemble** : la table en direct, avec les fourchettes tenues par chaque philosophe, le débit, les
+  conflits et l'équité ;
+- **Philosophes** : un bouton pour **arrêter ou redémarrer** chacun, et simuler une panne en direct ;
+- **Jetons** : qui tient quel jeton, et les files d'attente ;
+- **Historique** : les événements, triés par horloge de Lamport ;
+- **Calcul distribué** : lancer le Master–Worker et comparer 1 à 4 Workers sur un graphique.
+
+**Étape 12 — Lancer et organiser.**
 Un script (`run-local.sh`) ou Docker Compose lance tout en une commande. Le code est rangé par service, puis
-par partie du sujet, dans le package `fr.cytech.hamoudilitim.philo`.
+par partie du sujet, dans le package `fr.cytech.hamoudilitim.philo`. Le rapport technique
+([docs/rapport-technique.md](docs/rapport-technique.md)) rassemble l'architecture, les protocoles, les
+choix, les difficultés et les résultats.
 
 ---
 
@@ -132,21 +162,42 @@ par partie du sujet, dans le package `fr.cytech.hamoudilitim.philo`.
 Prérequis : JDK 17 ou plus récent, et Maven 3.9 ou plus récent. Docker est optionnel.
 
 ```bash
-mvn verify                       # compile les 4 modules et lance les 105 tests
+mvn verify                       # compile les 4 modules et lance les 111 tests
 
 ./scripts/run-local.sh TOKEN     # lance le moniteur, le superviseur et 5 philosophes (ici la partie 3.3)
-open http://localhost:8080       # tableau de bord
+open http://localhost:8080       # tableau de bord et panneau de contrôle
 ./scripts/stop-local.sh          # arrête tout
 ```
 
 `run-local.sh [MODE] [PAIR_MODE] [N] [RACE_WINDOW]` lance N philosophes (5 par défaut) dans le mode choisi.
 Les journaux sont écrits dans `logs/`. Chaque partie a sa commande, donnée dans la [section 6](#6-les-parties-réalisées).
 
-Avec Docker :
+Avec Docker, tout le système est lancé, Kafka et la supervision compris :
 
 ```bash
 MODE=TOKEN docker compose up --build
+# tableau de bord http://localhost:8080 · Prometheus http://localhost:9090 · Grafana http://localhost:3000
 ```
+
+Avec Kubernetes, les images sont celles publiées par la CI sur ghcr.io :
+
+```bash
+kubectl apply -k k8s
+kubectl -n philosophes port-forward svc/monitor 8080:8080
+```
+
+### Le tableau de bord
+
+| Onglet | Contenu |
+|---|---|
+| Vue d'ensemble | table en direct : un philosophe qui mange est relié aux fourchettes qu'il tient. Repas, débit, conflits, équité, courbe des repas par seconde |
+| Philosophes | état, repas, part des repas, fourchettes, horloge. Bouton **Arrêter / Redémarrer** pour simuler une panne |
+| Jetons | en mode TOKEN : jetons détenus, en transit, demande en cours, file d'attente vue par chaque philosophe |
+| Historique | les 200 derniers événements, triés par horloge de Lamport |
+| Calcul distribué | lancer « degrés » ou « accessibilité » sur un graphe aléatoire, et comparer 1 à N Workers sur un graphique |
+
+Le navigateur ne parle qu'au moniteur. Celui-ci relaie les commandes vers les philosophes
+(`/api/cluster/...`).
 
 ---
 
@@ -211,8 +262,13 @@ dining-philosophers/
 │   ├── protocole-jetons.md         partie 3.3 : conception et justification du protocole
 │   ├── comparaison-zookeeper.md    partie 3.4 : mesures et comparaison
 │   ├── strategie-de-tests.md       partie 4 : les tests et leurs limites
-│   └── master-worker.md            partie 5 : conception, mesures, analyse
+│   ├── master-worker.md            partie 5 : conception, mesures, analyse
+│   ├── devops.md                   partie 6 : Docker, Kafka, Kubernetes, CI/CD, supervision
+│   └── rapport-technique.md        partie 7 : le rapport
 ├── scripts/                        run-local.sh, stop-local.sh, bench-graph.sh (mesures de la partie 5)
+├── k8s/                            partie 6 : manifests Kubernetes (kubectl apply -k k8s)
+├── ops/                            partie 6 : configuration Prometheus (+ alertes) et Grafana (+ tableau de bord)
+│                                   (la CI GitHub Actions est à la racine du dépôt : .github/workflows/ci.yml)
 │
 ├── common/                         code partagé
 │   ├── LamportClock.java           horloge logique
@@ -224,11 +280,15 @@ dining-philosophers/
 │   ├── EventStore.java             historique, état de chaque philosophe, détection des conflits
 │   ├── EventController.java        API /api/events, /api/state
 │   ├── MonitorModel.java           données renvoyées par l'API
+│   ├── KafkaEventListener.java     partie 6 : lit les événements dans Kafka
+│   ├── ClusterController.java      panneau de contrôle : relaie vers les philosophes (/api/cluster)
+│   ├── MonitorMetrics.java         partie 6 : métriques Prometheus (conflits, repas)
 │   ├── MonitorApplication.java, MonitorProperties.java
-│   └── static/index.html           la page du tableau de bord
+│   └── static/index.html           l'interface web
 │
 ├── supervisor-service/             gestion centrale des fourchettes (:8081), parties 2, 3.1, 3.2
 │   ├── SupervisorController.java   API /api/forks (partie 2), /api/pairs (3.1, 3.2)
+│   ├── SupervisorMetrics.java      partie 6 : métriques Prometheus
 │   ├── SupervisorApplication.java, SupervisorConfig.java, SupervisorProperties.java
 │   └── fork/
 │       ├── ForkTable.java          qui tient chaque fourchette, compteur de violations
@@ -245,7 +305,10 @@ dining-philosophers/
     │   ├── Philosopher.java        Penser → Faim → Manger
     │   ├── DiningStrategy.java     comment obtenir et rendre les fourchettes (une version par partie)
     │   ├── ForkAssignment.java     règle d'attribution des deux fourchettes (3.3 et 3.4)
-    │   ├── EventReporter.java, HttpEventReporter.java   envoi des événements au moniteur
+    │   ├── EventReporter.java      envoi des événements au moniteur…
+    │   ├── HttpEventReporter.java  …en HTTP
+    │   ├── KafkaEventReporter.java …ou par Kafka (partie 6)
+    │   ├── MeteredStrategy.java    partie 6 : mesure attentes et repas pour Prometheus
     │   └── Sleeper.java
     ├── strategy/                   parties 1, 2, 3.1, 3.2
     │   ├── SpoiledStrategy.java          partie 1
@@ -497,12 +560,36 @@ curl -X POST localhost:8090/api/master/reachability -H 'Content-Type: applicatio
 ./scripts/bench-graph.sh                      # toutes les mesures de performance
 ```
 
+### Partie 6 — Approche DevOps
+
+**Ce que demande le sujet.** Docker pour la conteneurisation, Kafka pour la communication asynchrone,
+Kubernetes pour l'orchestration, une chaîne CI/CD, de la supervision, de la journalisation et une gestion des
+pannes.
+
+**Ce qui est fait.** Le détail est dans [docs/devops.md](docs/devops.md).
+
+| Brique | Réalisation |
+|---|---|
+| Docker | un `Dockerfile` en deux étapes, sans droits administrateur. `docker-compose.yml` lance 7 microservices, Kafka, ZooKeeper, Prometheus et Grafana |
+| Kafka | les événements passent par le topic `philo.events`, avec l'identifiant du philosophe comme clé (ordre conservé). Le moniteur rattrape les événements après un arrêt, et un message illisible est écarté |
+| Kubernetes | `k8s/` : `StatefulSet` et service headless (identifiant et DNS stables), `ConfigMap`, sondes de santé, limites de ressources, Prometheus avec découverte des pods |
+| CI/CD | `.github/workflows/ci.yml` : tests, validation de Kubernetes, de Compose et de Prometheus, puis publication des 3 images sur ghcr.io |
+| Supervision | métriques Micrometer (`/actuator/prometheus`), Prometheus, et tableau de bord Grafana provisionné |
+| Pannes | alertes Prometheus (service injoignable, conflit, famine, attente longue), redémarrage automatique, sondes de santé |
+| Journaux | sortie standard collectée par Docker ou Kubernetes, avec rotation |
+
+```bash
+MODE=TOKEN docker compose up --build          # tout le système, événements par Kafka
+EVENTS=KAFKA ./scripts/run-local.sh TOKEN     # en local, avec un Kafka sur localhost:9092
+kubectl apply -k k8s                          # sur un cluster Kubernetes
+```
+
 ---
 
 ## 7. Tests
 
 ```bash
-mvn verify                                                  # les 105 tests
+mvn verify                                                  # les 111 tests
 mvn test -pl philosopher-service -am -Dtest='Token*'        # seulement ceux de la partie 3.3
 caffeinate -i mvn verify                                    # macOS : empêche la mise en veille pendant les tests
 ```
@@ -515,7 +602,8 @@ Le classement des tests selon les 5 points de la partie 4 du sujet est dans
 | common | `LamportClockTest` | 4 | unitaire | règles de Lamport, pas de perte de tick en concurrence |
 | common | `ForkTopologyTest` | 3 | unitaire | disposition des fourchettes, bornes |
 | monitor | `EventStoreTest` | 10 | unitaire | cycle d'états, événements hors ordre, tri de Lamport, conflits entre voisins **et** sur des fourchettes quelconques |
-| monitor | `EventControllerTest` | 2 | web (MockMvc) | contrat HTTP du moniteur |
+| monitor | `EventControllerTest` | 3 | web (MockMvc) | contrat HTTP du moniteur, métriques Prometheus exposées |
+| monitor | `KafkaEventListenerTest` | 2 | intégration | 6 : vrai broker Kafka embarqué ; événements reçus, message illisible écarté |
 | supervisor | `NaiveForkServiceTest` | 4 | unitaire | les 4 failles de la partie 2 |
 | supervisor | `PairStrategyConcurrencyTest` | 7 | concurrence | 3.1 : fourchette partagée ; 3.2 : un seul servi, test de charge, demande répétée après une réponse perdue |
 | supervisor | `SupervisorApiTest` | 3 | web (MockMvc) | contrat HTTP du superviseur |
@@ -534,7 +622,8 @@ Le classement des tests selon les 5 points de la partie 4 du sujet est dans
 | philosopher | `GraphTest` | 4 | unitaire | 5 : graphe reproductible, somme des degrés = 2\|E\|, accessibilité séquentielle |
 | philosopher | `GraphMasterTest` | 11 | unitaire + résilience | 5 : résultats exacts pour 1 à 4 Workers ; Worker en panne, lent, ou qui tombe en plein parcours |
 | philosopher | `GraphHttpIntegrationTest` | 3 | intégration | 5 : Master et Workers en HTTP, y compris après l'arrêt d'un Worker |
-| | **Total** | **105** | | |
+| philosopher | `KafkaEventReporterTest` | 3 | unitaire (Mockito) | 6 : clé = identifiant du philosophe, panne de Kafka sans effet sur le philosophe |
+| | **Total** | **111** | | |
 
 ---
 
@@ -563,6 +652,12 @@ Le classement des tests selon les 5 points de la partie 4 du sujet est dans
 | philosopher | POST | `/api/master/reachability` | 5 : `{nodes, edges, seed, source, target, workers?}` → accessible ou non |
 | philosopher | POST | `/api/worker/degree`, `/api/worker/partition`, `/api/worker/expand` | 5 : tâches envoyées par le Master |
 | philosopher | DELETE | `/api/worker/jobs/{jobId}` | 5 : libère la mémoire d'un calcul |
+| monitor | GET | `/api/cluster` | panneau de contrôle : état de chaque philosophe (joignable, mode, état) |
+| monitor | POST | `/api/cluster/{id}/start`, `/api/cluster/{id}/stop` | panneau de contrôle : démarrer ou arrêter un philosophe |
+| monitor | GET | `/api/cluster/{id}/token-state` | panneau de contrôle : jetons d'un philosophe |
+| monitor | POST | `/api/cluster/master/{degrees\|reachability}` | panneau de contrôle : calcul Master–Worker (P0 est le Master) |
+| tous | GET | `/actuator/health/liveness`, `/actuator/health/readiness` | 6 : sondes de santé Kubernetes |
+| tous | GET | `/actuator/prometheus` | 6 : métriques |
 
 ---
 
@@ -591,18 +686,19 @@ Chaque propriété peut se passer en argument (`--philo.mode=TOKEN`) ou en varia
 | `supervisor.pair-mode` | `LOCKED` | `UNSAFE` (3.1) ou `LOCKED` (3.2) |
 | `supervisor.race-window` | 0ms | pause entre « vérifier » et « réserver » |
 | `monitor.detect-neighbour-conflicts` | `true` | détection des conflits (`false` en partie 1) |
+| `philo.events` | `HTTP` | 6 : `HTTP` ou `KAFKA` (défaut `KAFKA` en Docker et Kubernetes) |
+| `spring.kafka.bootstrap-servers` | `localhost:9092` | 6 : adresse de Kafka |
+| `monitor.kafka.enabled` | `false` | 6 : le moniteur lit aussi le topic Kafka `philo.events` |
+| `monitor.philosopher-urls` | ports 8090 à 8094 | adresses des philosophes, pour le panneau de contrôle |
 
 ---
 
 ## 10. Ce qu'il reste à faire
 
-### Partie 6 — DevOps
-- [x] Dockerfile et docker-compose.
-- [ ] Kafka pour les événements vers le moniteur (`KafkaEventReporter`, l'interface `EventReporter` existe déjà).
-- [ ] Manifests Kubernetes (StatefulSet pour donner un identifiant stable aux philosophes).
-- [ ] GitHub Actions : `mvn verify`, construction et envoi des images.
-- [ ] Supervision : Micrometer, Prometheus et Grafana, logs centralisés.
+Toutes les parties du sujet sont réalisées. Avant le rendu :
 
-### Livrables
-- [ ] Rapport technique : architecture, protocoles, choix, difficultés et solutions.
-- [ ] Captures du tableau de bord pour chaque partie, traces d'exécution analysées.
+- [ ] Rédiger la section « Utilisation de l'IA » du [rapport technique](docs/rapport-technique.md#8-utilisation-de-lia)
+  (sujet, §8.2).
+- [ ] Ajouter au rapport des captures du tableau de bord pour chaque partie.
+- [ ] Lancer une fois `docker compose up --build` et la CI sur GitHub : les fichiers sont validés, mais ils
+  n'ont pas pu être exécutés sur la machine de développement, faute de démon Docker et de cluster.

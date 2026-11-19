@@ -1,6 +1,7 @@
 package fr.cytech.hamoudilitim.philo.philosopher;
 
 import fr.cytech.hamoudilitim.philo.philosopher.core.DiningStrategy;
+import fr.cytech.hamoudilitim.philo.philosopher.core.MeteredStrategy;
 import fr.cytech.hamoudilitim.philo.philosopher.strategy.PairSupervisorStrategy;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +29,8 @@ class PhilosopherApplicationTest {
 
     @Test
     void modeSelectsTheRightStrategy() {
-        assertThat(strategy).isInstanceOf(PairSupervisorStrategy.class);
+        assertThat(strategy).isInstanceOf(MeteredStrategy.class);
+        assertThat(((MeteredStrategy) strategy).delegate()).isInstanceOf(PairSupervisorStrategy.class);
     }
 
     @Test

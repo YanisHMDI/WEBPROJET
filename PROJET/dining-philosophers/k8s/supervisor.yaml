@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: supervisor
+spec:
+  selector: { app: supervisor }
+  ports:
+    - { name: http, port: 8081 }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supervisor
+spec:
+  replicas: 1                     # un seul superviseur : il détient l'état des fourchettes en mémoire
+  selector:
+    matchLabels: { app: supervisor }
+  template:
+    metadata:
+      labels: { app: supervisor }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: /actuator/prometheus
+    spec:
+      containers:
+        - name: supervisor
+          image: philo/supervisor-service
+          ports:
+            - containerPort: 8081
+          env:
+            - name: SUPERVISOR_FORKS
+              valueFrom: { configMapKeyRef: { name: philo-config, key: PHILO_COUNT } }
+            - { name: SUPERVISOR_PAIR_MODE, value: LOCKED }
+          # gestion des pannes : Kubernetes redémarre le conteneur si la JVM ne répond plus (liveness)
+          # et ne lui envoie du trafic que lorsqu'il est prêt (readiness)
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: 8081 }
+            initialDelaySeconds: 40
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8081 }
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 512Mi }

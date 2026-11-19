@@ -1,10 +1,13 @@
 package fr.cytech.hamoudilitim.philo.philosopher;
 
 import fr.cytech.hamoudilitim.philo.common.LamportClock;
+import fr.cytech.hamoudilitim.philo.common.PhilosopherEvent;
 import fr.cytech.hamoudilitim.philo.philosopher.core.DiningStrategy;
 import fr.cytech.hamoudilitim.philo.philosopher.core.EventReporter;
 import fr.cytech.hamoudilitim.philo.philosopher.core.ForkAssignment;
 import fr.cytech.hamoudilitim.philo.philosopher.core.HttpEventReporter;
+import fr.cytech.hamoudilitim.philo.philosopher.core.KafkaEventReporter;
+import fr.cytech.hamoudilitim.philo.philosopher.core.MeteredStrategy;
 import fr.cytech.hamoudilitim.philo.philosopher.core.Philosopher;
 import fr.cytech.hamoudilitim.philo.philosopher.core.Sleeper;
 import fr.cytech.hamoudilitim.philo.philosopher.graph.GraphMaster;
@@ -23,12 +26,14 @@ import fr.cytech.hamoudilitim.philo.philosopher.token.TokenTransport.HttpTokenTr
 import fr.cytech.hamoudilitim.philo.philosopher.zookeeper.ZooKeeperStrategy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
@@ -52,8 +57,12 @@ public class PhilosopherConfig {
     }
 
     @Bean
-    EventReporter eventReporter(PhilosopherProperties props) {
-        return new HttpEventReporter(restClient(props.monitorUrl(), props.httpTimeout()));
+    EventReporter eventReporter(PhilosopherProperties props,
+                                ObjectProvider<KafkaTemplate<String, PhilosopherEvent>> kafka) {
+        return switch (props.events()) {
+            case HTTP -> new HttpEventReporter(restClient(props.monitorUrl(), props.httpTimeout()));
+            case KAFKA -> new KafkaEventReporter(kafka.getObject());
+        };
     }
 
     @Bean
@@ -64,7 +73,16 @@ public class PhilosopherConfig {
     /** Choisit la façon d'obtenir les fourchettes selon la partie du sujet ({@code philo.mode}). */
     @Bean
     DiningStrategy diningStrategy(PhilosopherProperties props, SupervisorClient supervisor, Sleeper sleeper,
-                                  ObjectProvider<TokenNode> tokenNode, ObjectProvider<CuratorFramework> zookeeper) {
+                                  ObjectProvider<TokenNode> tokenNode, ObjectProvider<CuratorFramework> zookeeper,
+                                  MeterRegistry metrics) {
+        // les mesures (attente, repas) sont ajoutées autour de la stratégie, sans la modifier
+        return new MeteredStrategy(strategyFor(props, supervisor, sleeper, tokenNode, zookeeper), metrics,
+                props.id(), props.mode().name());
+    }
+
+    private static DiningStrategy strategyFor(PhilosopherProperties props, SupervisorClient supervisor,
+                                              Sleeper sleeper, ObjectProvider<TokenNode> tokenNode,
+                                              ObjectProvider<CuratorFramework> zookeeper) {
         ForkAssignment assignment = ForkAssignment.of(props.assignment());
         return switch (props.mode()) {
             case SPOILED -> new SpoiledStrategy();

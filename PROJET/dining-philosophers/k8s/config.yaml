@@ -1,0 +1,18 @@
+# Réglages communs : changer de partie du sujet = changer PHILO_MODE puis redémarrer les philosophes
+#   kubectl -n philosophes edit configmap philo-config && kubectl -n philosophes rollout restart statefulset philosopher
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: philo-config
+data:
+  PHILO_COUNT: "5"
+  PHILO_MODE: TOKEN
+  PHILO_EVENTS: KAFKA
+  PHILO_ASSIGNMENT: RANDOM
+  PHILO_MONITOR_URL: http://monitor:8080
+  PHILO_SUPERVISOR_URL: http://supervisor:8081
+  PHILO_ZOOKEEPER_CONNECT: zookeeper:2181
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  # adresses stables grâce au StatefulSet et au service « headless » philosophers
+  PHILO_PEERS: >-
+    http://philosopher-0.philosophers:8090,http://philosopher-1.philosophers:8090,http://philosopher-2.philosophers:8090,http://philosopher-3.philosophers:8090,http://philosopher-4.philosophers:8090

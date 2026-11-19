@@ -1,0 +1,21 @@
+# Partie 6 — collecte des métriques de tous les microservices (Spring Boot Actuator + Micrometer).
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: monitor
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["monitor:8080"]
+  - job_name: supervisor
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["supervisor:8081"]
+  - job_name: philosophers
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["philo-0:8090", "philo-1:8090", "philo-2:8090", "philo-3:8090", "philo-4:8090"]

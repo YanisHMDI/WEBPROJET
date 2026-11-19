@@ -4,11 +4,21 @@ server:
 spring:
   application:
     name: philosopher-service
+  # partie 6 : utilisé seulement si philo.events=KAFKA
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+        # Kafka injoignable : abandonner vite plutôt que bloquer la boucle du philosophe
+        max.block.ms: 1000
 
 philo:
   id: 0
   count: 5
-  # SPOILED (partie 1) | NAIVE_SUPERVISOR (partie 2) | PAIR_SUPERVISOR (parties 3.1 / 3.2)
+  # SPOILED (1) | NAIVE_SUPERVISOR (2) | PAIR_SUPERVISOR (3.1 / 3.2) | TOKEN (3.3) | ZOOKEEPER (3.4)
   mode: SPOILED
   think-min: 500ms
   think-max: 2s
@@ -17,6 +27,8 @@ philo:
   retry-delay: 100ms
   http-timeout: 2s
   auto-start: true
+  # HTTP | KAFKA (partie 6)
+  events: HTTP
   monitor-url: http://localhost:8080
   supervisor-url: http://localhost:8081
 
@@ -24,4 +36,12 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        # partie 6 : santé (sondes Kubernetes) et métriques Prometheus
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true          # /actuator/health/liveness et /actuator/health/readiness
+  metrics:
+    tags:
+      application: ${spring.application.name}
